@@ -207,7 +207,10 @@ $code = "
     <input type='image' src='https://www.paghiper.com/img/checkout/boleto/boleto-120px-69px.jpg' 
     title='Pagar com Boleto' alt='Pagar com Boleto' border='0'
      align='absbottom' /><br>
-    <button class='btn btn-success' style='margin-top: 5px;' type=\"submit\"><i class='fas fa-barcode'></i> Gerar Boleto</button>
+    <button class='btn btn-success btn-block' style='margin-top: 5px;' type=\"submit\"><i class='fas fa-barcode'></i> Gerar Boleto</button> <br>
+    <div class='alert alert-warning' role='alert'>
+        <strong>Importante:</strong> A compensação bancária poderá levar até 2 dias úteis.
+    </div>
     <!-- FIM DO BOLETO PAGHIPER -->
     </form>
     {$abrirAuto}";
@@ -243,7 +246,10 @@ $code .= "
     <input type='image' src='https://www.paghiper.com/img/checkout/boleto/boleto-120px-69px.jpg' 
     title='Pagar com Boleto' alt='Pagar com Boleto' border='0'
      align='absbottom' /><br>
-    <button class='btn btn-success' style='margin-top: 5px;' type=\"submit\"><i class='fas fa-barcode'></i> Gerar Boleto</button>
+    <button class='btn btn-success btn-block' style='margin-top: 5px;' type=\"submit\"><i class='fas fa-barcode'></i> Gerar Boleto</button> <br>
+    <div class='alert alert-warning' role='alert'>
+        <strong>Importante:</strong> A compensação bancária poderá levar até 2 dias úteis.
+    </div>
     <!-- FIM DO BOLETO PAGHIPER -->
     </form>
     {$abrirAuto}";
