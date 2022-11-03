@@ -827,3 +827,29 @@ function create_paghiper_table() {
         return true;
     }
 }
+
+function paghiperUpdateInvoiceTpl() {
+	$whmcs = \DI::make("app");
+	$templateName = $whmcs->getClientAreaTemplate()->getName();
+	if (!isValidforPath($templateName)) {
+		throw new Exception\Fatal("Invalid System Template Name");
+	}
+	
+	$tplfile = "invoicepdf.tpl";
+	$tplFilePath = ROOTDIR . DIRECTORY_SEPARATOR . "templates" . DIRECTORY_SEPARATOR . $templateName . DIRECTORY_SEPARATOR . $tplfile;
+
+	if ( file_exists ($tplFilePath)){
+        // Parse file with Nikic/PHP-Parser
+        // https://github.com/nikic/php-parser
+
+        // Or Funivan/Tokenizer
+        // https://github.com/funivan/PhpTokenizer
+
+        // Check if include is installed
+
+        // If not, install it
+        if( is_writable ($tplFilePath) ) {
+            // Install it if one of compatible templates are active
+        }
+	}
+}
