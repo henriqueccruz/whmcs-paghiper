@@ -112,6 +112,11 @@ function paghiperCheckInvoiceTpl($tplAST) {
 				$includeFile = $node->expr->expr->right->value;
 				$includeType = $node->expr->type;
 
+				// Check against multiple formats of include expr
+				if(is_null($includeFile)) {
+					$includeFile = $node->expr->expr->value;
+				}
+
 				if($includeFile == $target_include['filename'] && $includeType == $target_include['type']) {
 					$isInstalled = true;
 				}
