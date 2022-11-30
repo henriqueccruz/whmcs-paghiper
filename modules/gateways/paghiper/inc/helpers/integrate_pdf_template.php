@@ -4,13 +4,18 @@ require_once __DIR__ . '/vendor/autoload.php';
 
 use PhpParser\Error;
 use PhpParser\Node;
-use PhpParser\Node\Stmt\Expression;
+use PhpParser\Node\Arg;
+use PhpParser\Node\Expr;
+use PhpParser\Node\Name;
 use PhpParser\Node\Expr\Include_;
+use PhpParser\Node\Stmt\Expression;
+use PhpParser\Node\Scalar\String_;
 use PhpParser\NodeTraverser;
 use PhpParser\NodeFinder;
 use PhpParser\NodeDumper;
 use PhpParser\NodeVisitorAbstract;
 use PhpParser\BuilderFactory;
+use PhpParser\BuilderHelpers;
 use PhpParser\ParserFactory;
 use PhpParser\PrettyPrinter;
 
@@ -64,28 +69,22 @@ function paghiperUpdateInvoiceTpl() {
             // $
 			$full_path = '/../../modules/gateways/paghiper/inc/helpers/attach_pdf_slip.php';
 
-			$include_node = new Node\Stmt\Expression(
-                new Node\Expr\Include_(
-                    new Node\Scalar\String_($full_path),Node\Expr\Include_::TYPE_INCLUDE
-                )
+			$include_node = new Expr\FuncCall(
+                new Name('include'),
+                [new Arg(new String_($full_path))]
             );
 
-			//$factory = new BuilderFactory;
-			//$node = $factory->addStmt($include_node)->getNode();
-
+			array_unshift($tplAST, BuilderHelpers::normalizeStmt($include_node));
 			
-			$stmts = array_merge([[$include_node], $tplAST]);
-			$prettyPrinter = new PrettyPrinter\Standard();
-			echo sprintf('<pre>%s</pre>', $prettyPrinter->prettyPrintFile($stmts));
+			$formattedTplCode = (new PrettyPrinter\Standard())->prettyPrintFile($tplAST);
+			//echo sprintf('<pre>%s</pre>', $formattedTplCode);
 
-			$initialSearchString = '<?php';
-			preg_replace($search, $replace, $subject, 1);
-
-			$original_content = file_get_contents($tplFilePath);
-			$new_update = preg_replace('/\$page_menu_transparent\s*=\s*1;/','$page_menu_transparent = 0;', $original_content, 1);
-
-			if(file_put_contents ($file, $new_update)){
-
+			if(file_put_contents ($tplFilePath, $formattedTplCode)){
+				echo 'We are clear to go!';
+				exit();
+			} else {
+				echo 'Nope!';
+				exit();
 			}
         }
 	}
