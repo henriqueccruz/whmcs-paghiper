@@ -828,7 +828,7 @@ function create_paghiper_table() {
     }
 }
 
-function paghiperUpdateInvoiceTpl() {
+/*function paghiperUpdateInvoiceTpl() {
 	$whmcs = \DI::make("app");
 	$templateName = $whmcs->getClientAreaTemplate()->getName();
 	if (!isValidforPath($templateName)) {
@@ -852,4 +852,4 @@ function paghiperUpdateInvoiceTpl() {
             // Install it if one of compatible templates are active
         }
 	}
-}
+}*/
