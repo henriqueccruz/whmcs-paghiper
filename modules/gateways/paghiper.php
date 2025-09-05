@@ -77,6 +77,11 @@ Sempre começa por apk_. Caso não tenha essa informação, pegue sua chave API 
             "Size" => "3",
             "Description" => "Defina aqui o ID do campo usado, caso utilize um campo personalizado para coletar a Razão Social do seu cliente. Isso é opcional."
         ),
+        "negar_sem_company_razao" => array(
+            "FriendlyName" => "Negar emissões pra CNPJs sem Razão Social?",
+            "Type" => "yesno",
+            "Description" => "Marque essa opção caso não queira aceitar faturar para CNPJs mesmo que o campo de nome da Empresa ou Razão Social estejam vazios."
+        ),
         "porcento" => array(
             "FriendlyName" => "Taxa Percentual (%)",
             "Type" => "text",
@@ -205,6 +210,7 @@ function paghiper_link($params) {
     // Checamos o CPF/CNPJ novamente, para evitar problemas no checkout
     $taxIdFields = explode("|", $params['cpf_cnpj']);
     $payerNameField = $params['razao_social'];
+    $denyCNPJWithoutPayerName = array_key_exists('negar_sem_company_razao', $params) ? $params['negar_sem_company_razao'] : FALSE;
 
     if(array_key_exists('billingcid', $params['clientdetails']) && $params['clientdetails']['billingcid'] == 0) {
         $client = $params['clientdetails'];
@@ -240,11 +246,14 @@ function paghiper_link($params) {
     }
 
     $isValidTaxId = false;
-    foreach($clientTaxIds as $clientTaxId) {
-        if(paghiper_is_tax_id_valid($clientTaxId)) {
+    foreach($clientTaxIds as $taxIdKey => $clientTaxId) {
+
+        if(!paghiper_is_tax_id_valid($clientTaxId)) {
+            unset($clientTaxIds[$taxIdKey]);
+        } else {
             $isValidTaxId = true;
-            break 1;
         }
+
     }
 
     $code = '';
@@ -255,7 +264,7 @@ function paghiper_link($params) {
 
         $taxid_value = preg_replace('/\D/', '', $clientTaxId);
 
-        if(strlen( $taxid_value ) > 11 && empty($client['companyname']) && empty($payerNameField) && empty($clientPayerName)) {
+        if($denyCNPJWithoutPayerName && strlen( $taxid_value ) > 11 && empty($client['companyname']) && empty($payerNameField) && empty($clientPayerName)) {
             
             $isValidPayerName = false;
             $code .= sprintf('<div class="alert alert-danger" role="alert">%s</div>', 'Razão social inválida, atualize seus dados cadastrais.');
