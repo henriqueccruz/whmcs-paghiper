@@ -127,17 +127,7 @@ function paghiper_convert_to_numeric($str) {
     return preg_replace('/\D/', '', $str);
 }
 
-function paghiper_query_scape_string($string) {
-	if(function_exists('mysql_real_escape_string')) {
-		return mysql_real_escape_string($string);
-	}
-
-	return mysql_escape_string($string);
-
-}
-
-function paghiper_apply_custom_taxes($amount, $GATEWAY, $params = NULL){
-    if($params && array_key_exists('amount', $params)) {
+function paghiper_apply_custom_taxes($amount, $GATEWAY, $params = NULL){    if($params && array_key_exists('amount', $params)) {
         $amount     = (float) $params['amount'];
         $porcento   = (float) $params['porcento'];
         $taxa       = (float) $params['taxa'];
@@ -226,10 +216,11 @@ function paghiper_is_valid_cnpj( $cnpj ) {
 }
 
 function paghiper_check_if_subaccount($user_id, $email, $invoice_userid) {
-    $sql = "SELECT userid, id, email, permissions, invoiceemails FROM tblcontacts WHERE userid = '$user_id' AND email = '$email' LIMIT 1";
-    $query = Capsule::connection()
-        ->getPdo()
-        ->prepare($sql);
+    $sql = "SELECT userid, id, email, permissions, invoiceemails FROM tblcontacts WHERE userid = :user_id AND email = :email LIMIT 1";
+    $pdo = Capsule::connection()->getPdo();
+    $query = $pdo->prepare($sql);
+    $query->bindValue(':user_id', $user_id);
+    $query->bindValue(':email', $email);
     $query->execute();
     $user = $query->fetch(\PDO::FETCH_BOTH);
 

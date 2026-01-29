@@ -45,10 +45,9 @@ if (!defined("WHMCS")) {
     if(isset($_GET["invoiceid"])) {
         
         $user_id = intval($_GET["uuid"]);
-		$user_email = paghiper_query_scape_string($_GET["mail"]);
-
-        $return_json = (isset($_GET['json']) && $_GET['json'] == 1) ? TRUE : FALSE;
-
+                $user_email = (string) $_GET["mail"];
+        
+                $return_json = (isset($_GET['json']) && $_GET['json'] == 1) ? TRUE : FALSE;
         // Pegamos a fatura no banco de dados
         $getinvoice = 'getinvoice';
         $getinvoiceid['invoiceid'] = intval($_GET["invoiceid"]);
