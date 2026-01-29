@@ -5,7 +5,7 @@
 !README.md
 !LICENSE
 
-!includes/hooks/*paghiper*.php
+!includes/hooks/paghiper*.php
 !modules/gateways/paghiper.php
 !modules/gateways/paghiper_pix.php
 !modules/gateways/paghiper/**/*
