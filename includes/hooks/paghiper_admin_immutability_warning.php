@@ -16,15 +16,27 @@ if (!defined("WHMCS")) die("This file cannot be accessed directly");
 use WHMCS\Database\Capsule;
 
 function paghiper_admin_immutability_warning($vars) {
+    // Só rodamos o safeguard de imutabilidade se for WHMCS v9 ou superior
+    try {
+        $whmcsVersion = Capsule::table('tblconfiguration')->where('setting', 'Version')->value('value');
+        $majorVersion = (int) explode('.', $whmcsVersion)[0];
+        if ($majorVersion < 9) {
+            return;
+        }
+    } catch (\Exception $e) {
+        logActivity("PagHiper Warning Hook: Erro ao obter a versão do WHMCS no banco de dados: " . $e->getMessage());
+        return;
+    }
+
     // Carrega o arquivo de configuração do WHMCS diretamente para garantir o acesso à variável
     $config_file = __DIR__ . '/../../configuration.php';
     if (file_exists($config_file)) {
         include $config_file;
     }
 
-    // Se a mutação estiver ativada, não precisamos mostrar o aviso
-    if (isset($allow_adminarea_invoice_mutation) && $allow_adminarea_invoice_mutation === true) {
-        return '';
+    // Se a mutação estiver ativada (true), não precisamos mostrar o aviso
+    if (isset($allow_adminarea_invoice_mutation) && $allow_adminarea_invoice_mutation === false) {
+        return;
     }
 
     // Só mostramos o aviso nas páginas relevantes (Dashboard, Portais de Pagamento e Faturas)

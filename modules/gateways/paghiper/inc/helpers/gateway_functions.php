@@ -63,7 +63,18 @@ function paghiper_add_to_invoice($invoice_id, $desc, $value, $whmcs_admin) {
     $results = localAPI('UpdateInvoice', $postData, $whmcs_admin);
 
     if (isset($results['result']) && $results['result'] === 'error') {
-        logTransaction('PagHiper', array('postData' => $postData, 'response' => $results), "Erro ao atualizar a fatura (Imutabilidade WHMCS v9). Defina \$allow_adminarea_invoice_mutation = true no configuration.php se desejar aplicar descontos/juros automaticamente na fatura.");
+        try {
+            $whmcsVersion = Capsule::table('tblconfiguration')->where('setting', 'Version')->value('value');
+            $majorVersion = (int) explode('.', $whmcsVersion)[0];
+        } catch (\Exception $e) {
+            $majorVersion = 8;
+        }
+
+        if ($majorVersion >= 9) {
+            logTransaction('PagHiper', array('postData' => $postData, 'response' => $results), "Erro ao atualizar a fatura (Imutabilidade WHMCS v9). Defina \$allow_adminarea_invoice_mutation = true no configuration.php se desejar aplicar descontos/juros automaticamente na fatura.");
+        } else {
+            logTransaction('PagHiper', array('postData' => $postData, 'response' => $results), "Erro ao atualizar a fatura: " . (isset($results['message']) ? $results['message'] : 'Erro desconhecido.'));
+        }
         return false;
     }
     return true;
