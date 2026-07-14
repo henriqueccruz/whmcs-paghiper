@@ -20,59 +20,60 @@ if (version_compare(PHP_VERSION, '7.0.0') >= 0) {
 
 require_once($basedir . '/modules/gateways/paghiper/inc/helpers/gateway_functions.php');
 
-function paghiper_getClientDetails($vars, $gateway_config) {
+function paghiper_clientValidateTaxId($vars) {
+    if (array_key_exists('paymentmethod', $vars) && strpos($vars['paymentmethod'], "paghiper") !== false) {
+        $gatewayConfig = getGatewayVariables($vars['paymentmethod']);
+    } else {
+        return;
+    }
 
-    $gateway_admin = $gateway_config['admin'];
-    $backup_admin = array_shift(mysql_fetch_array(mysql_query("SELECT username FROM tbladmins LIMIT 1")));
+    if (empty($gatewayConfig['cpf_cnpj'])) {
+        return;
+    }
 
-    $whmcs_admin = paghiper_autoSelectAdminUser($gateway_config);
-
-    $query_params = array(
-        'clientid' 	=> $vars['userid'],
-        'stats'		=> false
-    );
-
-    return localAPI('getClientsDetails', $query_params, $whmcs_admin);
-}
-
-function paghiper_getClientCustomFields($vars, $gateway_config) {
-
+    // Checamos o CPF/CNPJ novamente, para evitar problemas no checkout
+    $taxIdFields = explode("|", $gatewayConfig['cpf_cnpj']);
     $clientCustomFields = [];
+    $clientTaxIds = [];
 
-    if(array_key_exists('custtype', $vars) && $vars['custtype'] == 'existing') {
+    if (array_key_exists('custtype', $vars) && $vars['custtype'] == 'existing') {
+        $whmcsAdmin = paghiper_autoSelectAdminUser($gatewayConfig);
 
-        $client_details = paghiper_getClientDetails($vars, $gateway_config);
+        $query_params = array(
+            'clientid' 	=> $vars['userid'],
+            'stats'		=> false
+        );
 
-        foreach($client_details["customfields"] as $key => $value){
+        $client_details = localAPI('getClientsDetails', $query_params, $whmcsAdmin);
+
+        foreach ($client_details["customfields"] as $key => $value) {
             $clientCustomFields[$value['id']] = $value['value'];
         }
-
     } else {
-
-        foreach($vars["customfield"] as $key => $value){
-            $clientCustomFields[$key] = $value;
+        if (isset($vars["customfield"]) && is_array($vars["customfield"])) {
+            foreach ($vars["customfield"] as $key => $value) {
+                $clientCustomFields[$key] = $value;
+            }
         }
-
     }
-    
-    if(count($taxIdFields) > 1) {
-        $clientTaxIds[] = $clientCustomFields[$taxIdFields[0]];
-        $clientTaxIds[] = $clientCustomFields[$taxIdFields[1]];
+
+    if (count($taxIdFields) > 1) {
+        $clientTaxIds[] = isset($clientCustomFields[$taxIdFields[0]]) ? $clientCustomFields[$taxIdFields[0]] : '';
+        $clientTaxIds[] = isset($clientCustomFields[$taxIdFields[1]]) ? $clientCustomFields[$taxIdFields[1]] : '';
     } else {
-        $clientTaxIds[] = $clientCustomFields[$taxIdFields[0]];
+        $clientTaxIds[] = isset($clientCustomFields[$taxIdFields[0]]) ? $clientCustomFields[$taxIdFields[0]] : '';
     }
 
     $isValidTaxId = false;
-    foreach($clientTaxIds as $clientTaxId) {
-        if(paghiper_is_tax_id_valid($clientTaxId)) {
+    foreach ($clientTaxIds as $clientTaxId) {
+        if (!empty($clientTaxId) && paghiper_is_tax_id_valid($clientTaxId)) {
             $isValidTaxId = true;
-            break 1;
+            break;
         }
     }
 
-    if(!$isValidTaxId) {
-
-        if(array_key_exists('custtype', $vars) && $vars['custtype'] == 'existing') {
+    if (!$isValidTaxId) {
+        if (array_key_exists('custtype', $vars) && $vars['custtype'] == 'existing') {
             return array('CPF/CNPJ inválido! Cheque seu cadastro.');
         } else {
             return array('CPF/CNPJ inválido!');

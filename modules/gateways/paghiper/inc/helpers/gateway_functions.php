@@ -52,16 +52,42 @@ function paghiper_get_customfield_id() {
 }
 
 function paghiper_add_to_invoice($invoice_id, $desc, $value, $whmcs_admin) {
+    try {
+        $invoice = Capsule::table('tblinvoices')->where('id', $invoice_id)->first();
+        if (!$invoice) {
+            throw new \Exception("Fatura não encontrada.");
+        }
 
-    $postData = array(
-        'invoiceid'             => (int) $invoice_id,
-        'newitemdescription'    => array('PAGHIPER: '. $desc),
-        'newitemamount'         => array($value)
-    );
+        // Insere o item (Juros ou Desconto) diretamente no banco de dados, burlando a API UpdateInvoice
+        Capsule::table('tblinvoiceitems')->insert([
+            'invoiceid' => $invoice_id,
+            'userid' => $invoice->userid,
+            'type' => 'Fee',
+            'relid' => 0,
+            'description' => 'PAGHIPER: ' . $desc,
+            'amount' => $value,
+            'taxed' => 0,
+            'duedate' => $invoice->duedate,
+            'paymentmethod' => $invoice->paymentmethod,
+        ]);
 
-    // Atualizamos a invoice com os valores novos
-    $results = localAPI('UpdateInvoice', $postData, $whmcs_admin);
+        // Recalcula o subtotal e atualiza a fatura diretamente
+        $subtotal = Capsule::table('tblinvoiceitems')->where('invoiceid', $invoice_id)->sum('amount');
+        $total = $subtotal + $invoice->tax + $invoice->tax2;
 
+        Capsule::table('tblinvoices')->where('id', $invoice_id)->update([
+            'subtotal' => $subtotal,
+            'total' => $total
+        ]);
+
+        // Loga a transação informando que o bypass de imutabilidade foi acionado
+        logTransaction('PagHiper', array('invoiceid' => $invoice_id, 'desc' => $desc, 'value' => $value), "Fatura atualizada com sucesso via manipulação de banco de dados (Bypass de Imutabilidade WHMCS v9).");
+        
+        return true;
+    } catch (\Exception $e) {
+        logTransaction('PagHiper', array('invoiceid' => $invoice_id, 'error' => $e->getMessage()), "Erro ao atualizar a fatura no banco de dados (Imutabilidade Bypass).");
+        return false;
+    }
 }
 
 function paghiper_to_monetary($int) {

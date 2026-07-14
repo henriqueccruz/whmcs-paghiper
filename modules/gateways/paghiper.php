@@ -267,7 +267,7 @@ function paghiper_link($params) {
         if($denyCNPJWithoutPayerName && strlen( $taxid_value ) > 11 && empty($client['companyname']) && empty($payerNameField) && empty($clientPayerName)) {
             
             $isValidPayerName = false;
-            $code .= sprintf('<div class="alert alert-danger" role="alert">%s</div>', 'Razão social inválida, atualize seus dados cadastrais.');
+            $code .= sprintf('<div class="alert alert-danger" role="alert">%s <br><a href="clientarea.php?action=details" class="btn btn-default btn-sm" style="margin-top:10px;"><i class="fas fa fa-edit"></i> Atualizar Cadastro</a></div>', '<strong>Atenção:</strong> Razão social inválida. Por favor, atualize seus dados cadastrais para gerar o boleto.');
 
         }
     }
@@ -295,7 +295,7 @@ function paghiper_link($params) {
             <form name=\"paghiper\" action=\"{$urlRetorno}?invoiceid={$params['invoiceid']}&uuid={$params['clientdetails']['userid']}&mail={$params['clientdetails']['email']}\" method=\"post\">
                 <input type=\"hidden\" name=\"client_data\" value='".json_encode($client_details)."'>
                 <input type='image' src='{$systemurl}/modules/gateways/paghiper/assets/img/billet.jpg' title='Pagar com Boleto' alt='Pagar com Boleto' border='0' align='absbottom' width='120' height='74' /><br>
-                <button formtarget='_blank' class='btn btn-success' style='margin-top: 5px;' type=\"submit\"><i class='fa fa-barcode'></i> Gerar Boleto</button>
+                <button formtarget='_blank' class='btn btn-success' style='margin-top: 5px;' type=\"submit\"><i class='fas fa-barcode'></i> Gerar Boleto</button>
                 <br> <br>
                 <div class='alert alert-warning' role='alert'>
                 <strong>Importante:</strong> A compensação bancária poderá levar até 2 dias úteis.
@@ -304,11 +304,11 @@ function paghiper_link($params) {
             </form>
             {$abrirAuto}";
         } else {
-            $code = sprintf('<div class="alert alert-danger" role="alert">%s</div>', 'Nome do pagador inválido, atualize seus dados cadastrais.');
+            $code = sprintf('<div class="alert alert-danger" role="alert">%s <br><a href="clientarea.php?action=details" class="btn btn-default btn-sm" style="margin-top:10px;"><i class="fas fa fa-edit"></i> Atualizar Cadastro</a></div>', '<strong>Atenção:</strong> Razão social inválida. Por favor, atualize seus dados cadastrais para gerar o boleto.');
         }
 
     } else {
-        $code .= sprintf('<div class="alert alert-danger" role="alert">%s</div>', 'CPF ou CNPJ inválido, atualize seus dados cadastrais.');
+        $code .= sprintf('<div class="alert alert-danger" role="alert">%s <br><a href="clientarea.php?action=details" class="btn btn-default btn-sm" style="margin-top:10px;"><i class="fas fa fa-edit"></i> Atualizar Cadastro</a></div>', '<strong>Atenção:</strong> CPF ou CNPJ inválido. Por favor, atualize seus dados cadastrais para gerar o boleto.');
     }
     
    return $code; 

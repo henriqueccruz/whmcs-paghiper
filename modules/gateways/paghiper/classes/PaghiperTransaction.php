@@ -35,6 +35,7 @@ class PaghiperTransaction {
         require_once __DIR__ . '/../../../../init.php';
         require_once __DIR__ . '/../../../../includes/gatewayfunctions.php';
         require_once __DIR__ . '/../../../../includes/invoicefunctions.php';
+        require_once __DIR__ . '/../inc/helpers/gateway_functions.php';
 
         $this->invoiceID    = $transactionParams['invoiceID'];
         $this->outputFormat = array_key_exists('format', $transactionParams) ? $transactionParams['format'] : 'html';

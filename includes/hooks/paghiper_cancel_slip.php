@@ -13,6 +13,8 @@
 
 if (!defined("WHMCS")) die("This file cannot be accessed directly");
 
+use WHMCS\Database\Capsule;
+
 function paghiper_cancel_paghiper_slips($vars) {
 	
 	// PHP 5.x compatibility
@@ -36,10 +38,14 @@ function paghiper_cancel_paghiper_slips($vars) {
 		$account_api_key = trim($gatewayConfig['api_key']);
 
 		// Query database for active transactions
-		$transactions = mysql_query("SELECT transaction_id, status FROM mod_paghiper WHERE order_id = '{$invoice_id}' AND status = 'pending'");
+		$pdo = Capsule::connection()->getPdo();
+		$sql = "SELECT transaction_id, status FROM mod_paghiper WHERE order_id = :invoice_id AND status = 'pending'";
+		$query = $pdo->prepare($sql);
+		$query->bindValue(':invoice_id', $invoice_id);
+		$query->execute();
 
 		// Loop and cancel each and every one of them
-		while($transaction = mysql_fetch_array($transactions)) {
+		while($transaction = $query->fetch(\PDO::FETCH_ASSOC)) {
 
 			// Define data for our API transaction
 			$paghiper_data = array(
@@ -77,11 +83,11 @@ function paghiper_cancel_paghiper_slips($vars) {
 			$json = json_decode($result, true);
 
 			if($httpCode == 201) {
-				logTransaction($GATEWAY["name"],array('post' => $paghiper_data, 'json' => $json), "Boleto adicional cancelado com sucesso. Transação #{$transaction['transaction_id']}"); 
+				logTransaction($gatewayConfig["name"],array('post' => $paghiper_data, 'json' => $json), "Boleto adicional cancelado com sucesso. Transação #{$transaction['transaction_id']}"); 
 				paghiper_log_status_to_db('canceled', $transaction['transaction_id']);
 			} else {
 				// Logamos um erro pra controle
-				logTransaction($GATEWAY["name"],array('post' => $paghiper_data, 'json' => $json), "Não foi possível cancelar o boleto"); 
+				logTransaction($gatewayConfig["name"],array('post' => $paghiper_data, 'json' => $json), "Não foi possível cancelar o boleto"); 
 				paghiper_log_status_to_db('force_canceled', $transaction['transaction_id']);
 			}
 
