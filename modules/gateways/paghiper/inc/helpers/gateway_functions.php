@@ -62,6 +62,11 @@ function paghiper_add_to_invoice($invoice_id, $desc, $value, $whmcs_admin) {
     // Atualizamos a invoice com os valores novos
     $results = localAPI('UpdateInvoice', $postData, $whmcs_admin);
 
+    if (isset($results['result']) && $results['result'] === 'error') {
+        logTransaction('PagHiper', array('postData' => $postData, 'response' => $results), "Erro ao atualizar a fatura (Imutabilidade WHMCS v9). Defina \$allow_adminarea_invoice_mutation = true no configuration.php se desejar aplicar descontos/juros automaticamente na fatura.");
+        return false;
+    }
+    return true;
 }
 
 function paghiper_to_monetary($int) {
