@@ -212,7 +212,7 @@ function paghiper_pix_link($params) {
         if($denyCNPJWithoutPayerName && strlen( $taxid_value ) > 11 && empty($client['companyname']) && empty($payerNameField) && empty($clientPayerName)) {
             
             $isValidPayerName = false;
-            $code .= sprintf('<div class="alert alert-danger" role="alert">%s</div>', 'Razão social inválida, atualize seus dados cadastrais.');
+            $code .= sprintf('<div class="alert alert-danger" role="alert">%s <br><a href="clientarea.php?action=details" class="btn btn-default btn-sm" style="margin-top:10px;"><i class="fas fa-edit"></i> Atualizar Cadastro</a></div>', '<strong>Atenção:</strong> Razão social inválida. Por favor, atualize seus dados cadastrais para gerar o PIX.');
 
         }
     }
@@ -249,11 +249,11 @@ function paghiper_pix_link($params) {
             </form>
             {$abrirAuto}";
         } else {
-            $code = sprintf('<div class="alert alert-danger" role="alert">%s</div>', 'CPF ou CNPJ inválido, atualize seus dados cadastrais.');
+            $code = sprintf('<div class="alert alert-danger" role="alert">%s <br><a href="clientarea.php?action=details" class="btn btn-default btn-sm" style="margin-top:10px;"><i class="fas fa-edit"></i> Atualizar Cadastro</a></div>', '<strong>Atenção:</strong> Razão social inválida. Por favor, atualize seus dados cadastrais para gerar o PIX.');
         }
         
     } else {
-        $code .= sprintf('<div class="alert alert-danger" role="alert">%s</div>', 'CPF ou CNPJ inválido, atualize seus dados cadastrais.');
+        $code .= sprintf('<div class="alert alert-danger" role="alert">%s <br><a href="clientarea.php?action=details" class="btn btn-default btn-sm" style="margin-top:10px;"><i class="fas fa-edit"></i> Atualizar Cadastro</a></div>', '<strong>Atenção:</strong> CPF ou CNPJ inválido. Por favor, atualize seus dados cadastrais para gerar o PIX.');
     }
     
    return $code; 
