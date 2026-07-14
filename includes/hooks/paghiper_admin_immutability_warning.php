@@ -35,7 +35,7 @@ function paghiper_admin_immutability_warning($vars) {
     }
 
     // Se a mutação estiver ativada (true), não precisamos mostrar o aviso
-    if (isset($allow_adminarea_invoice_mutation) && $allow_adminarea_invoice_mutation === false) {
+    if (isset($allow_adminarea_invoice_mutation) && $allow_adminarea_invoice_mutation === true) {
         return;
     }
 
