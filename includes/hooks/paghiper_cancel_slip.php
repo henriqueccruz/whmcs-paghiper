@@ -77,11 +77,11 @@ function paghiper_cancel_paghiper_slips($vars) {
 			$json = json_decode($result, true);
 
 			if($httpCode == 201) {
-				logTransaction($GATEWAY["name"],array('post' => $paghiper_data, 'json' => $json), "Boleto adicional cancelado com sucesso. Transação #{$transaction['transaction_id']}"); 
+				logTransaction($gatewayConfig["name"],array('post' => $paghiper_data, 'json' => $json), "Boleto adicional cancelado com sucesso. Transação #{$transaction['transaction_id']}"); 
 				paghiper_log_status_to_db('canceled', $transaction['transaction_id']);
 			} else {
 				// Logamos um erro pra controle
-				logTransaction($GATEWAY["name"],array('post' => $paghiper_data, 'json' => $json), "Não foi possível cancelar o boleto"); 
+				logTransaction($gatewayConfig["name"],array('post' => $paghiper_data, 'json' => $json), "Não foi possível cancelar o boleto"); 
 				paghiper_log_status_to_db('force_canceled', $transaction['transaction_id']);
 			}
 
