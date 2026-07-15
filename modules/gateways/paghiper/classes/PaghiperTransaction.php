@@ -448,32 +448,29 @@ class PaghiperTransaction {
         
                 foreach($fields as $field) {
                     
-                    $sql = "SELECT * FROM tblcustomfieldsvalues WHERE relid = '$client_id' and fieldid = '".trim($field)."'";
-                    $query = Capsule::connection()
-                        ->getPdo()
-                        ->prepare($sql);
-                    $query->execute();
-                    $result = $query->fetch(\PDO::FETCH_BOTH);
-    
-                    ($i == 0) ? $cpf = paghiper_convert_to_numeric(trim($result["value"])) : $cnpj = paghiper_convert_to_numeric(trim($result["value"]));
+                    $result = Capsule::table('tblcustomfieldsvalues')
+                        ->where('relid', $client_id)
+                        ->where('fieldid', trim($field))
+                        ->first();
+                    
+                    $val = $result ? $result->value : '';
+                    ($i == 0) ? $cpf = paghiper_convert_to_numeric(trim($val)) : $cnpj = paghiper_convert_to_numeric(trim($val));
                     if($i == 1) { break; }
                     $i++;
                 }
+    
+                $cpf_cnpj = (empty($cnpj)) ? $cpf : $cnpj;
         
             } else {
     
                 // Se simples, pegamos somente o que temos
-                $sql = "SELECT value FROM tblcustomfieldsvalues WHERE relid = '$client_id' and fieldid = '$cpfcnpj'";
-                $query = Capsule::connection()
-                    ->getPdo()
-                    ->prepare($sql);
-                $query->execute();
-                $result = $query->fetch(\PDO::FETCH_BOTH);
-
-                if(is_array($result) && !empty($result)) {
-                    $cpf_cnpj     = paghiper_convert_to_numeric(trim(array_shift($result)));
-                }
-            
+                $result = Capsule::table('tblcustomfieldsvalues')
+                    ->where('relid', $client_id)
+                    ->where('fieldid', trim($cpfcnpj))
+                    ->first();
+                
+                $val = $result ? $result->value : '';
+                $cpf_cnpj = paghiper_convert_to_numeric(trim($val));
             }
     
         }
