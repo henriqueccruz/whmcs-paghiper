@@ -16,7 +16,46 @@ use WHMCS\User\Client;
 // Opções padrão do Gateway
 function paghiper_pix_config($params = NULL) {
 
+    // Intercept AJAX actions from our Custom UI
+    if (isset($_POST['paghiper_action'])) {
+        ob_clean();
+        header('Content-Type: application/json');
+        
+        $action = $_POST['paghiper_action'];
+        
+        if ($action == 'analyze_email_templates') {
+            $templates_str = $_POST['templates'] ?? '';
+            $module_type = $_POST['module'] ?? 'paghiper'; // paghiper or paghiper_pix
+            $templates = array_map('trim', explode(',', $templates_str));
+            $required_tag = ($module_type == 'paghiper_pix') ? '{$codigo_pix}' : '{$linha_digitavel}';
+            
+            $results = [];
+            foreach ($templates as $tplName) {
+                if (empty($tplName)) continue;
+                $db_results = \Illuminate\Database\Capsule\Manager::table('tblemailtemplates')
+                    ->where('name', $tplName)
+                    ->get();
+                    
+                $results[$tplName] = [];
+                foreach ($db_results as $row) {
+                    $lang = empty($row->language) ? 'Default' : ucfirst($row->language);
+                    $hasTag = (strpos($row->message, $required_tag) !== false);
+                    $results[$tplName][] = [
+                        'language' => $lang,
+                        'id' => $row->id,
+                        'integrated' => $hasTag
+                    ];
+                }
+            }
+            echo json_encode(['success' => true, 'analysis' => $results, 'required_tag' => $required_tag]);
+            exit;
+        }
+    }
+
     $custom_fields_conf = paghiper_get_customfield_id();
+    
+    $systemUrl = rtrim(\App::getSystemUrl(), "/");
+    $jsUrl = $systemUrl . '/modules/gateways/paghiper/assets/js/admin_tabs.js';
 
     $config = array(
         'FriendlyName' => array(
@@ -117,6 +156,16 @@ Sempre começa por apk_. Caso não tenha essa informação, pegue sua chave API 
             "Size" => "10",
             "Default" => "admin",
             "Description" => "Insira o nome de usuário ou ID do administrador do WHMCS que será atribuído as transações. Necessário para usar a API interna do WHMCS."
+        ),
+        'email_templates' => array(
+            "FriendlyName" => "Templates de E-mail (Interno)",
+            "Type" => "text",
+            "Default" => "Invoice Created,Invoice Payment Reminder,First Invoice Overdue Notice,Second Invoice Overdue Notice,Third Invoice Overdue Notice",
+            "Description" => "<div id='paghiper_row_email_templates_hidden'></div>"
+        ),
+        'ui_email_templates' => array(
+            "FriendlyName" => "Templates de E-mail",
+            "Description" => "<div id='paghiper_row_ui_email_templates'></div><script src=\"{$jsUrl}?v=" . time() . "\"></script>"
         ),
         'suporte' => array(
             "FriendlyName" => "<span class='label label-primary'><i class='fa fa-question-circle'></i> Suporte</span>",

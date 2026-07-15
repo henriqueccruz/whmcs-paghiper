@@ -21,32 +21,59 @@ document.addEventListener("DOMContentLoaded", function() {
         var groups = {
             "Geral": ["nota", "FriendlyName", "email", "api_key", "token", "cpf_cnpj", "razao_social", "admin", "suporte"],
             "Taxas e Prazos": ["porcento", "taxa", "open_after_day_due", "reissue_unpaid", "late_payment_fine", "per_day_interest", "early_payment_discounts_days", "early_payment_discounts_cents"],
-            "Templates de E-mail": ["email_templates", "ui_email_templates"],
-            "Avançado e Integração": ["issue_all", "tax_id_validation", "abrirauto", "fixed_description", "ui_injector"]
+            "Integração": ["ui_email_templates", "ui_injector"],
+            "Avançado": ["issue_all", "tax_id_validation", "abrirauto", "fixed_description", "negar_sem_company_razao"]
         };
 
         var tabContainer = document.createElement("ul");
-        tabContainer.className = "nav nav-tabs";
+        tabContainer.className = "nav nav-tabs admin-tabs";
         tabContainer.style.marginBottom = "15px";
 
         var first = true;
-        for (var groupName in groups) {
+        for (var group in groups) {
             var li = document.createElement("li");
-            li.className = first ? "active" : "";
+            if (first) li.className = "active";
+            
             var a = document.createElement("a");
             a.href = "#";
-            a.innerHTML = groupName;
-            a.dataset.group = groupName;
+            a.innerHTML = group;
+            a.onclick = (function(activeGroup, tabLink) {
+                return function(e) {
+                    e.preventDefault();
+                    
+                    var tabs = tabContainer.querySelectorAll("li");
+                    tabs.forEach(function(t) { t.className = ""; });
+                    tabLink.parentNode.className = "active";
+                    
+                    var rows = table.querySelectorAll("tr");
+                    rows.forEach(function(row) {
+                        var input = row.querySelector("[name^='field[']");
+                        if (input) {
+                            var fieldNameMatch = input.name.match(/field\[(.*?)\]/);
+                            if (fieldNameMatch) {
+                                var fieldName = fieldNameMatch[1];
+                                if (groups[activeGroup].indexOf(fieldName) !== -1) {
+                                    row.style.display = "";
+                                } else {
+                                    row.style.display = "none";
+                                }
+                            }
+                        } else {
+                            // Handle pseudo-fields with wrappers
+                            if (row.querySelector('#paghiper_row_nota')) { row.style.display = (activeGroup === 'Geral') ? '' : 'none'; }
+                            if (row.querySelector('#paghiper_row_suporte')) { row.style.display = (activeGroup === 'Geral') ? '' : 'none'; }
+                            if (row.querySelector('#paghiper_row_ui_injector')) { row.style.display = (activeGroup === 'Integração') ? '' : 'none'; }
+                            if (row.querySelector('#paghiper_row_ui_email_templates')) { row.style.display = (activeGroup === 'Integração') ? '' : 'none'; }
+                        }
+                    });
+                };
+            })(group, a);
+            
             li.appendChild(a);
             tabContainer.appendChild(li);
-
-            a.addEventListener("click", function(e) {
-                e.preventDefault();
-                tabContainer.querySelectorAll("li").forEach(function(el) { el.classList.remove("active"); });
-                this.parentElement.classList.add("active");
-                
-                var activeGroup = this.dataset.group;
-                
+            
+            // Initial render
+            if (first) {
                 var rows = table.querySelectorAll("tr");
                 rows.forEach(function(row) {
                     var input = row.querySelector("[name^='field[']");
@@ -54,7 +81,7 @@ document.addEventListener("DOMContentLoaded", function() {
                         var fieldNameMatch = input.name.match(/field\[(.*?)\]/);
                         if (fieldNameMatch) {
                             var fieldName = fieldNameMatch[1];
-                            if (groups[activeGroup].indexOf(fieldName) !== -1) {
+                            if (groups[group].indexOf(fieldName) !== -1) {
                                 row.style.display = "";
                             } else {
                                 row.style.display = "none";
@@ -62,21 +89,19 @@ document.addEventListener("DOMContentLoaded", function() {
                         }
                     } else {
                         // Handle pseudo-fields with wrappers
-                        if (row.querySelector('#paghiper_row_nota')) { row.style.display = (activeGroup === 'Geral') ? '' : 'none'; }
-                        if (row.querySelector('#paghiper_row_suporte')) { row.style.display = (activeGroup === 'Geral') ? '' : 'none'; }
-                        if (row.querySelector('#paghiper_row_ui_injector')) { row.style.display = (activeGroup === 'Avançado e Integração') ? '' : 'none'; }
-                        if (row.querySelector('#paghiper_row_ui_email_templates')) { row.style.display = (activeGroup === 'Templates de E-mail') ? '' : 'none'; }
+                        if (row.querySelector('#paghiper_row_nota')) { row.style.display = (group === 'Geral') ? '' : 'none'; }
+                        if (row.querySelector('#paghiper_row_suporte')) { row.style.display = (group === 'Geral') ? '' : 'none'; }
+                        if (row.querySelector('#paghiper_row_ui_injector')) { row.style.display = (group === 'Integração') ? '' : 'none'; }
+                        if (row.querySelector('#paghiper_row_ui_email_templates')) { row.style.display = (group === 'Integração') ? '' : 'none'; }
                     }
                 });
-            });
+            }
             first = false;
         }
 
         table.parentNode.insertBefore(tabContainer, table);
         
-        tabContainer.querySelector("a").click();
-        
-        setupIntegrationUI();
+        setupIntegrationUI(form);
         setupEmailTemplatesUI(form);
     }
 
@@ -84,16 +109,13 @@ document.addEventListener("DOMContentLoaded", function() {
         var hiddenRow = form.querySelector('#paghiper_row_email_templates_hidden');
         if (!hiddenRow) return;
         
-        // Find the actual hidden input (the field `email_templates` rendered by WHMCS)
-        // Since it's a 'text' field, WHMCS renders it as <input type="text" name="field[email_templates]">
-        // The hiddenRow div is in the description. So we look up the tree to find the tr, then find the input.
         var parentTr = hiddenRow.closest('tr');
-        if(parentTr) parentTr.style.display = 'none'; // Hide the entire row containing the native text input
+        if(parentTr) parentTr.style.display = 'none'; 
         
         var inputEl = form.querySelector('input[name="field[email_templates]"]');
         if (!inputEl) return;
         
-        var uiContainer = document.getElementById('paghiper_row_ui_email_templates');
+        var uiContainer = form.querySelector('#paghiper_row_ui_email_templates');
         if (!uiContainer) return;
         
         var availableTemplates = [
@@ -112,12 +134,22 @@ document.addEventListener("DOMContentLoaded", function() {
         
         availableTemplates.forEach(function(tpl) {
             var checked = currentValues.indexOf(tpl) !== -1 ? 'checked' : '';
+            var safeTpl = tpl.replace(/[^a-zA-Z0-9]/g, '');
             html += '<label style="display:block; margin-bottom:5px; font-weight:normal;">';
-            html += '<input type="checkbox" class="paghiper-email-tpl-cb" value="'+tpl+'" '+checked+'> ' + tpl;
+            html += '<input type="checkbox" class="paghiper-email-tpl-cb" value="'+tpl+'" '+checked+'> <strong>' + tpl + '</strong>';
+            html += '<span id="paghiper-tpl-status-'+safeTpl+'" style="margin-left:5px; font-size:12px; color:#666;"> - <i>(Analisando...)</i></span>';
             html += '</label>';
         });
         
-        html += '</div></div>';
+        html += '<div style="margin-top:10px;"><button id="paghiper-analyze-emails" class="btn btn-default btn-sm">Atualizar Status</button></div>';
+        
+        html += '</div>';
+        
+        // Add advanced smarty snippet suggestion
+        html += '<p style="margin-top:15px; margin-bottom:5px;"><strong>Dica Avançada:</strong> Se desejar personalizar o corpo do e-mail incluindo os dados de pagamento de forma inteligente, copie e cole o bloco condicional abaixo no seu template (Menu <i>Setup > Email Templates</i>):</p>';
+        html += '<pre style="background:#fff; padding:10px; border:1px solid #ccc; font-size:11px; margin-bottom:0;">{if $invoice_payment_method eq "PagHiper PIX"}<br>  {$codigo_pix}<br>{elseif $invoice_payment_method eq "PagHiper"}<br>  {$linha_digitavel}<br>{/if}</pre>';
+        
+        html += '</div>';
         uiContainer.innerHTML = html;
         
         // Listen to changes and update the hidden text input
@@ -131,9 +163,82 @@ document.addEventListener("DOMContentLoaded", function() {
                 inputEl.value = selected.join(',');
             });
         });
+
+        function runAnalysis() {
+            var moduleName = 'paghiper';
+            if (window.location.href.indexOf('paghiper_pix') !== -1 || form.innerHTML.indexOf('Frase fixa no PIX') !== -1 || form.innerHTML.indexOf('PAGHIPER PIX') !== -1) {
+                moduleName = 'paghiper_pix';
+            }
+            var mInput = form.querySelector('input[name="module"]');
+            if (mInput && mInput.value) { moduleName = mInput.value; }
+            
+            var allTpls = availableTemplates.join(',');
+            
+            submitAjaxAction('analyze_email_templates', { templates: allTpls, module: moduleName }, function(res) {
+                if (res.success && res.analysis) {
+                    availableTemplates.forEach(function(tpl) {
+                        var safeTpl = tpl.replace(/[^a-zA-Z0-9]/g, '');
+                        var span = form.querySelector('#paghiper-tpl-status-'+safeTpl);
+                        if (span && res.analysis[tpl]) {
+                            var langs = res.analysis[tpl];
+                            if (langs.length === 0) {
+                                span.innerHTML = ' | <span style="color:#999;">Template não encontrado</span>';
+                            } else if (langs.length === 1) {
+                                var l = langs[0];
+                                var mark = l.integrated ? '<span style="color:green;"><i class="fa fa-check"></i> Integrado</span>' : '<span style="color:red;"><i class="fa fa-times"></i> Não integrado</span>';
+                                span.innerHTML = ' | ' + mark + ' - <a href="configemailtemplates.php?action=edit&id=' + l.id + '" target="_blank" style="text-decoration:underline;">[Editar]</a>';
+                            } else {
+                                var statusStr = ' | ';
+                                langs.forEach(function(l) {
+                                    var mark = l.integrated ? '<span style="color:green;"><i class="fa fa-check"></i></span>' : '<span style="color:red;"><i class="fa fa-times"></i></span>';
+                                    statusStr += l.language + ' ' + mark + ' | ';
+                                });
+                                var defaultLang = langs.find(x => x.language === 'Default') || langs[0];
+                                statusStr += '<a href="configemailtemplates.php?action=edit&id=' + defaultLang.id + '" target="_blank" style="text-decoration:underline;">[Editar]</a>';
+                                span.innerHTML = statusStr;
+                            }
+                        }
+                    });
+                }
+            });
+        }
+
+        // Analyze button event
+        var analyzeBtn = form.querySelector('#paghiper-analyze-emails');
+        if (analyzeBtn) {
+            analyzeBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                availableTemplates.forEach(function(tpl) {
+                    var safeTpl = tpl.replace(/[^a-zA-Z0-9]/g, '');
+                    var span = form.querySelector('#paghiper-tpl-status-'+safeTpl);
+                    if (span) span.innerHTML = ' - <i>(Analisando...)</i>';
+                });
+                runAnalysis();
+            });
+        }
+        
+        // Auto-run on load
+        runAnalysis();
     }
 
-    function setupIntegrationUI() {
+    function setupIntegrationUI(form) {
+        // Sync auto_pdf_integration
+        var nativeAutoPdf = form.querySelector('input[type="checkbox"][name="field[auto_pdf_integration]"]');
+        var customAutoPdf = form.querySelector('#paghiper-custom-auto-pdf');
+        if (nativeAutoPdf && customAutoPdf) {
+            // Hide the native row
+            var nativeRow = nativeAutoPdf.closest('tr');
+            if(nativeRow) nativeRow.style.display = 'none';
+            
+            // Initial sync
+            customAutoPdf.checked = nativeAutoPdf.checked;
+            
+            // Sync on change
+            customAutoPdf.addEventListener('change', function() {
+                nativeAutoPdf.checked = customAutoPdf.checked;
+            });
+        }
+        
         var forceBtn = document.getElementById('paghiper-force-integration');
         if (forceBtn && !forceBtn.dataset.bound) {
             forceBtn.dataset.bound = "1";

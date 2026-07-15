@@ -26,7 +26,12 @@ function paghiper_display_pix_qr_code($vars) {
     $email_template = $vars['messagename'];
     $invoice_id = $vars['relid'];
 
-    $target_templates = array('Invoice Created', 'Invoice Payment Reminder', 'First Invoice Overdue Notice', 'Second Invoice Overdue Notice', 'Third Invoice Overdue Notice');
+    $db_templates = Capsule::table('tblpaymentgateways')
+        ->where('gateway', 'paghiper_pix')
+        ->where('setting', 'email_templates')
+        ->value('value');
+        
+    $target_templates = $db_templates ? array_map('trim', explode(',', $db_templates)) : [];
 
     if(in_array($email_template, $target_templates)) {
 

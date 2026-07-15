@@ -44,7 +44,12 @@ function paghiper_render_integration_ui() {
         $html .= "<option value=\"{$tpl}\" {$sel}>{$tpl} " . (($tpl == $activeTemplate) ? '(Ativo)' : '') . "</option>";
     }
     $html .= '</select>';
-    $html .= ' <button id="paghiper-force-integration" class="btn btn-primary btn-sm">Forçar Integração</button></div>';
+    $html .= ' <button id="paghiper-force-integration" class="btn btn-primary btn-sm">Integrar</button></div>';
+    
+    $html .= '<div style="margin-top: 10px;">';
+    $html .= '<label style="font-weight:normal; font-size:12px; color:#555;">';
+    $html .= '<input type="checkbox" id="paghiper-custom-auto-pdf"> <strong style=" font-size:14px;">Customização Automática do PDF (Auto-Heal)</strong><br> Se marcado, o sistema verificará silenciosamente se o template PDF possui o bloco do PagHiper antes do envio de cada fatura, e caso o tema da sua instalação seja atualizado ou trocado, o sistema atualizará a integração automaticamente.';
+    $html .= '</label></div>';
     
     $html .= '<hr>';
     
@@ -95,6 +100,32 @@ function paghiper_config($params = NULL) {
             $backup = $_POST['backup'] ?? '';
             $result = $integrator->restoreBackup($template, $backup);
             echo json_encode(['success' => $result, 'error' => $result ? '' : 'Falha ao restaurar o backup.']);
+            exit;
+        } elseif ($action == 'analyze_email_templates') {
+            $templates_str = $_POST['templates'] ?? '';
+            $module_type = $_POST['module'] ?? 'paghiper'; // paghiper or paghiper_pix
+            $templates = array_map('trim', explode(',', $templates_str));
+            $required_tag = ($module_type == 'paghiper_pix') ? '{$codigo_pix}' : '{$linha_digitavel}';
+            
+            $results = [];
+            foreach ($templates as $tplName) {
+                if (empty($tplName)) continue;
+                $db_results = \Illuminate\Database\Capsule\Manager::table('tblemailtemplates')
+                    ->where('name', $tplName)
+                    ->get();
+                    
+                $results[$tplName] = [];
+                foreach ($db_results as $row) {
+                    $lang = empty($row->language) ? 'Default' : ucfirst($row->language);
+                    $hasTag = (strpos($row->message, $required_tag) !== false);
+                    $results[$tplName][] = [
+                        'language' => $lang,
+                        'id' => $row->id,
+                        'integrated' => $hasTag
+                    ];
+                }
+            }
+            echo json_encode(['success' => true, 'analysis' => $results, 'required_tag' => $required_tag]);
             exit;
         }
     }
@@ -265,6 +296,11 @@ Sempre começa por apk_. Caso não tenha essa informação, pegue sua chave API 
         'ui_email_templates' => array(
             "FriendlyName" => "Templates de E-mail",
             "Description" => "<div id='paghiper_row_ui_email_templates'></div>"
+        ),
+        'auto_pdf_integration' => array(
+            "FriendlyName" => "Customização Automática do PDF (Auto-Heal)",
+            "Type" => "yesno",
+            "Description" => "Se marcado, o sistema verificará silenciosamente se o template PDF possui o bloco do PagHiper antes do envio de cada fatura. Caso o lojista troque de tema, o sistema tentará reinstalar o bloco do código automaticamente."
         ),
         'ui_injector' => array(
             "FriendlyName" => "Configuração de Integração (PDF & Email)",

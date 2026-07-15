@@ -23,6 +23,25 @@ use Illuminate\Database\Capsule\Manager as Capsule;
  * Attaches the PagHiper PDF (Boleto or PIX) to invoice-related emails.
  */
 add_hook('EmailPreSend', 1, function($vars) {
+    // 1. Auto-Heal Check (Runs before any email is sent to ensure PDF is ready)
+    $auto_heal = Capsule::table('tblpaymentgateways')
+        ->where('gateway', 'paghiper')
+        ->where('setting', 'auto_pdf_integration')
+        ->value('value');
+
+    if ($auto_heal == 'on' || $auto_heal == '1') {
+        $integrator_path = ROOTDIR . '/modules/gateways/paghiper/inc/helpers/integrate_pdf_template.php';
+        if (file_exists($integrator_path)) {
+            require_once($integrator_path);
+            if (class_exists('PaghiperPdfInvoiceIntegrator')) {
+                $integrator = new PaghiperPdfInvoiceIntegrator();
+                if (!$integrator->isTplIntegrated()) {
+                    $integrator->autoHeal();
+                }
+            }
+        }
+    }
+
     $email_template = $vars['messagename'];
     $invoice_id = $vars['relid'];
     $attachments = [];
@@ -101,23 +120,4 @@ add_hook('EmailPreSend', 1, function($vars) {
     }
 
     return ['attachments' => $attachments];
-});
-
-/**
- * Hook: DailyCronJob
- * Checks if invoicepdf.tpl is integrated and re-applies integration if missing.
- * This handles "Self-Healing" if a theme update wipes the integration.
- */
-add_hook('DailyCronJob', 1, function($vars) {
-    
-    $integrator_path = ROOTDIR . '/modules/gateways/paghiper/inc/helpers/integrate_pdf_template.php';
-
-    if (file_exists($integrator_path)) {
-        require_once($integrator_path);
-        
-        if (class_exists('PaghiperPdfInvoiceIntegrator')) {
-            // Instantiating the class triggers the check/update logic in the constructor
-            new PaghiperPdfInvoiceIntegrator();
-        }
-    }
 });
