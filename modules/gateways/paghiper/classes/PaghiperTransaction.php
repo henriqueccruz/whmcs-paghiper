@@ -317,7 +317,9 @@ class PaghiperTransaction {
         $client_data_breakpoint = 0;
 
         // Checamos se os dados do cliente vem de um checkout ou do perfil do cliente.
-        $client_data = json_decode(html_entity_decode($_POST['client_data']), TRUE);
+        $client_data_raw = isset($_POST['client_data']) ? $_POST['client_data'] : '';
+        $client_data = !empty($client_data_raw) ? json_decode(html_entity_decode($client_data_raw), TRUE) : [];
+        
         if( !empty($_POST) && is_array($client_data) && !empty($client_data) ) {
             $client_details = $client_data;
             $client_data_breakpoint = 1;
