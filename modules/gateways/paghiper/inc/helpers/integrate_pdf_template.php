@@ -252,7 +252,7 @@ class PaghiperPdfInvoiceIntegrator {
         ];
         $issueAllJson = htmlspecialchars(json_encode($issueAllConfig), ENT_QUOTES, 'UTF-8');
 
-        $html = "<div style=\"background:#f8f9fa; border:1px solid #ddd; padding:15px; border-radius:4px; max-width: 600px;\" data-friendly-names=\"{$namesJson}\" data-issue-all=\"{$issueAllJson}\" class=\"paghiper-integration-ui-container\">";
+        $html = "<div style=\"background:#f8f9fa; border:1px solid #ddd; padding:15px; border-radius:4px; max-width: 600px;\" data-module=\"{$moduleName}\" data-friendly-names=\"{$namesJson}\" data-issue-all=\"{$issueAllJson}\" class=\"paghiper-integration-ui-container\">";
         $html .= '<h4>Gerenciamento da Integração de Boleto/PIX no PDF</h4>';
         $html .= '<p>O módulo precisa adicionar uma linha de código ao arquivo <code>invoicepdf.tpl</code> do seu tema para poder anexar boletos e PIX aos e-mails enviados aos clientes.</p>';
         
