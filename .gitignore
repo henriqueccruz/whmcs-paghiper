@@ -20,6 +20,8 @@
 !modules/gateways/paghiper/assets/
 !modules/gateways/paghiper/assets/css/
 !modules/gateways/paghiper/assets/css/*.css
+!modules/gateways/paghiper/assets/js/
+!modules/gateways/paghiper/assets/js/*.js
 !modules/gateways/paghiper/assets/svg/
 !modules/gateways/paghiper/assets/svg/*.svg
 !modules/gateways/paghiper/**/*.php

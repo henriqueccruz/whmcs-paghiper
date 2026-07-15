@@ -11,10 +11,93 @@
  * @link       https://www.paghiper.com/
  */
 
-use WHMCS\User\Client; 
+function paghiper_render_integration_ui() {
+    $systemUrl = rtrim(\App::getSystemUrl(), "/");
+    $jsUrl = $systemUrl . '/modules/gateways/paghiper/assets/js/admin_tabs.js';
+    
+    // Fallback if accessed via CLI or early boot where App::getSystemUrl might not be fully accurate for admin
+    // In WHMCS, the asset URL is always predictable from the module dir.
+    
+    require_once __DIR__ . '/paghiper/inc/helpers/integrate_pdf_template.php';
+    $integrator = new PaghiperPdfInvoiceIntegrator();
+    
+    // We get the active template by default
+    $activeTemplate = \Illuminate\Database\Capsule\Manager::table('tblconfiguration')->where('setting', 'Template')->value('value');
+    
+    $templates = $integrator->getAvailableTemplates();
+    if (!in_array($activeTemplate, $templates)) $templates[] = $activeTemplate;
+    
+    $isIntegrated = $integrator->isTplIntegrated($integrator->getPdfInvoiceTplPath($activeTemplate));
+    
+    $html = '<div style="background:#f8f9fa; border:1px solid #ddd; padding:15px; border-radius:4px; max-width: 600px;">';
+    $html .= '<h4>Gerenciamento da Integração de Boleto/PIX no PDF</h4>';
+    $html .= '<p>O módulo precisa adicionar uma linha de código ao arquivo <code>invoicepdf.tpl</code> do seu tema para poder anexar boletos e PIX aos e-mails enviados aos clientes.</p>';
+    
+    $html .= '<div style="margin-bottom:15px;"><strong>Status: </strong> <span id="paghiper-int-status">';
+    $html .= $isIntegrated ? '<span style="color:green;font-weight:bold;">Integrado</span>' : '<span style="color:red;font-weight:bold;">Não Integrado</span>';
+    $html .= '</span></div>';
+    
+    $html .= '<div class="form-group"><label>Template Alvo:</label><br>';
+    $html .= '<select id="paghiper-template-selector" class="form-control" style="max-width: 300px; display:inline-block;">';
+    foreach ($templates as $tpl) {
+        $sel = ($tpl == $activeTemplate) ? 'selected' : '';
+        $html .= "<option value=\"{$tpl}\" {$sel}>{$tpl} " . (($tpl == $activeTemplate) ? '(Ativo)' : '') . "</option>";
+    }
+    $html .= '</select>';
+    $html .= ' <button id="paghiper-force-integration" class="btn btn-primary btn-sm">Forçar Integração</button></div>';
+    
+    $html .= '<hr>';
+    
+    $backups = $integrator->getBackups($activeTemplate);
+    $html .= '<div class="form-group"><label>Restaurar Backup:</label><br>';
+    $html .= '<select id="paghiper-backup-selector" class="form-control" style="max-width: 300px; display:inline-block;">';
+    if (empty($backups)) {
+        $html .= '<option value="">Nenhum backup disponível</option>';
+    } else {
+        foreach ($backups as $b) {
+            $html .= "<option value=\"{$b['filename']}\">{$b['filename']} ({$b['date']})</option>";
+        }
+    }
+    $html .= '</select>';
+    $disabled = empty($backups) ? 'disabled' : '';
+    $html .= ' <button id="paghiper-restore-backup" class="btn btn-danger btn-sm" ' . $disabled . '>Restaurar</button></div>';
+    
+    $html .= '</div>';
+    
+    // Inject the javascript
+    $html .= "<script src=\"{$jsUrl}?v=" . time() . "\"></script>";
+    
+    return $html;
+}
 
 // Opções padrão do Gateway
 function paghiper_config($params = NULL) {
+
+    // Intercept AJAX actions from our Custom UI
+    if (isset($_POST['paghiper_action'])) {
+        ob_clean();
+        header('Content-Type: application/json');
+        require_once __DIR__ . '/paghiper/inc/helpers/integrate_pdf_template.php';
+        $integrator = new PaghiperPdfInvoiceIntegrator();
+        $action = $_POST['paghiper_action'];
+        $template = $_POST['template'] ?? '';
+        
+        if ($action == 'get_status') {
+            $isIntegrated = $integrator->isTplIntegrated($integrator->getPdfInvoiceTplPath($template));
+            $backups = $integrator->getBackups($template);
+            echo json_encode(['status' => true, 'integrated' => $isIntegrated, 'backups' => $backups]);
+            exit;
+        } elseif ($action == 'force_integration') {
+            $result = $integrator->updatePdfInvoiceTpl($template);
+            echo json_encode(['success' => $result, 'error' => $result ? '' : 'Falha na integração. Verifique se o arquivo tem permissão de escrita.']);
+            exit;
+        } elseif ($action == 'restore_backup') {
+            $backup = $_POST['backup'] ?? '';
+            $result = $integrator->restoreBackup($template, $backup);
+            echo json_encode(['success' => $result, 'error' => $result ? '' : 'Falha ao restaurar o backup.']);
+            exit;
+        }
+    }
 
     $custom_fields_conf = paghiper_get_customfield_id();
 
@@ -30,6 +113,7 @@ function paghiper_config($params = NULL) {
                 <tbody>
                     <tr>
                         <td width='60%'><img src='https://s3.amazonaws.com/logopaghiper/whmcs/badge.oficial.png' style='max-width: 100%;'></td>
+                        <td>Versão <h2 style='font-weight: bold; margin-top: 0px; font-size: 300%;'>2.5.3</h2></td>
                         <td>Versão <h2 style='font-weight: bold; margin-top: 0px; font-size: 300%;'>2.5.4</h2></td>
                     </tr>
                 </tbody>
@@ -172,6 +256,10 @@ Sempre começa por apk_. Caso não tenha essa informação, pegue sua chave API 
             "Size" => "10",
             "Default" => "admin",
             "Description" => "Insira o nome de usuário ou ID do administrador do WHMCS que será atribuído as transações. Necessário para usar a API interna do WHMCS."
+        ),
+        'ui_injector' => array(
+            "FriendlyName" => "Configuração de Integração (PDF & Email)",
+            "Description" => paghiper_render_integration_ui()
         ),
         'suporte' => array(
             "FriendlyName" => "<span class='label label-primary'><i class='fa fa-question-circle'></i> Suporte</span>",
