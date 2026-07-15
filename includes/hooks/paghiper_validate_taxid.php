@@ -11,6 +11,8 @@
  * @link       https://www.paghiper.com/
  */
 
+if (!defined("WHMCS")) die("This file cannot be accessed directly");
+
 // PHP 5.x compatibility
 if (version_compare(PHP_VERSION, '7.0.0') >= 0) {
     $basedir = (function_exists('dirname')) ? dirname(__DIR__, 2) : realpath(__DIR__ . '/../..');
