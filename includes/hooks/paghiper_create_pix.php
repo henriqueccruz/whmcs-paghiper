@@ -35,9 +35,15 @@ function paghiper_display_pix_qr_code($vars) {
 
     if(in_array($email_template, $target_templates)) {
 
-        require_once($basedir . '/modules/gateways/paghiper/classes/PaghiperTransaction.php');
-        $paghiperTransaction    = new PaghiperTransaction(['invoiceID' => $invoice_id, 'format' => 'array']);
-        $invoiceTransaction     = $paghiperTransaction->process();
+        $invoice = Capsule::table('tblinvoices')->where('id', $invoice_id)->first();
+        if (!$invoice) return [];
+        
+        $issueAllPix = Capsule::table('tblpaymentgateways')->where('gateway', 'paghiper_pix')->where('setting', 'issue_all')->value('value');
+        
+        if ($invoice->paymentmethod == 'paghiper_pix' || $issueAllPix == '1' || $issueAllPix == 'on') {
+            require_once($basedir . '/modules/gateways/paghiper/classes/PaghiperTransaction.php');
+            $paghiperTransaction    = new PaghiperTransaction(['invoiceID' => $invoice_id, 'format' => 'array', 'forceGateway' => 'paghiper_pix']);
+            $invoiceTransaction     = $paghiperTransaction->process();
 
         if($invoiceTransaction) {
 		
@@ -52,7 +58,8 @@ function paghiper_display_pix_qr_code($vars) {
                 $merge_fields['codigo_pix'] .= '</strong></span></span></div>';
             }
         }
-
+        
+        } // End of PIX check
 
     }
     return $merge_fields;

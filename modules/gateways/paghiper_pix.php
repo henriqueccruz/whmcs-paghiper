@@ -191,7 +191,7 @@ Sempre começa por apk_. Caso não tenha essa informação, pegue sua chave API 
         'issue_all' => [
             "FriendlyName" => "Gerar para todos os pedidos?",
             "Type" => "yesno",
-            "Description" => "Ao marcar, todo pedido (com valor mínimo aceito) gerará boleto/PIX PagHiper na mesma hora."
+            "Description" => "Ao marcar, todo pedido (com valor mínimo aceito) gerará PIX PagHiper na mesma hora."
         ],
         'email_templates' => [
             "FriendlyName" => "Templates de E-mail (Interno)",

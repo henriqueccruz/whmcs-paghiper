@@ -193,7 +193,18 @@ document.addEventListener("DOMContentLoaded", function() {
         
         var domIssueAllCb = form.querySelector('input[type="checkbox"][name="field[issue_all]"]');
         if (domIssueAllCb) {
-            domIssueAllCb.addEventListener('change', updateSnippetUI);
+            domIssueAllCb.addEventListener('change', function(e) {
+                updateSnippetUI();
+                
+                if (this.checked) {
+                    var isPixModule = window.location.href.indexOf('paghiper_pix') !== -1 || form.innerHTML.indexOf('Frase fixa no PIX') !== -1 || form.innerHTML.indexOf('PAGHIPER PIX') !== -1;
+                    if (isPixModule) {
+                        alert("Atenção: A emissão global de PIX tem prioridade e irá sobrescrever a emissão de Boletos caso ambas estejam ativas.");
+                    } else {
+                        alert("Atenção: Você ativou a emissão global de Boletos. Lembre-se de que se esta opção também estiver ativa no gateway PagHiper PIX, o PIX terá prioridade e será gerado em vez do Boleto.");
+                    }
+                }
+            });
         }
         
         // Listen to changes and update the hidden text input

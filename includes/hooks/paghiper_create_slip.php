@@ -35,11 +35,17 @@ function paghiper_display_digitable_line($vars) {
 
     if(in_array($email_template, $target_templates)) {
 
-        $whmcs_url = rtrim(\App::getSystemUrl(),"/");
+        $invoice = Capsule::table('tblinvoices')->where('id', $invoice_id)->first();
+        if (!$invoice) return [];
+        
+        $issueAllBoleto = Capsule::table('tblpaymentgateways')->where('gateway', 'paghiper')->where('setting', 'issue_all')->value('value');
+        
+        if ($invoice->paymentmethod == 'paghiper' || $issueAllBoleto == '1' || $issueAllBoleto == 'on') {
+            $whmcs_url = rtrim(\App::getSystemUrl(),"/");
 
-        require_once($basedir . '/modules/gateways/paghiper/classes/PaghiperTransaction.php');
-        $paghiperTransaction    = new PaghiperTransaction(['invoiceID' => $invoice_id, 'format' => 'array']);
-        $invoiceTransaction     = $paghiperTransaction->process();
+            require_once($basedir . '/modules/gateways/paghiper/classes/PaghiperTransaction.php');
+            $paghiperTransaction    = new PaghiperTransaction(['invoiceID' => $invoice_id, 'format' => 'array', 'forceGateway' => 'paghiper']);
+            $invoiceTransaction     = $paghiperTransaction->process();
 
         if($invoiceTransaction) {
 
@@ -53,6 +59,8 @@ function paghiper_display_digitable_line($vars) {
                 $merge_fields['linha_digitavel'] .= '</strong></span></span></div>';
             }
         }
+        
+        } // End of Boleto check
 
     }
     return $merge_fields;

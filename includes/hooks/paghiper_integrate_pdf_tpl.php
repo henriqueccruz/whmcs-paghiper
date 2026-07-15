@@ -69,11 +69,28 @@ add_hook('EmailPreSend', 1, function($vars) {
             ->select('tblinvoices.paymentmethod', 'tblinvoices.total', 'tblclients.id as client_id', 'tblclients.email')
             ->first();
 
-        if (!$invoice || strpos($invoice->paymentmethod, 'paghiper') === false) {
+        if (!$invoice) {
             return [];
         }
 
-        $is_pix = ($invoice->paymentmethod == 'paghiper_pix');
+        $isPaghiper = (strpos($invoice->paymentmethod, 'paghiper') !== false);
+        
+        $issueAllPix = Capsule::table('tblpaymentgateways')->where('gateway', 'paghiper_pix')->where('setting', 'issue_all')->value('value');
+        $issueAllBoleto = Capsule::table('tblpaymentgateways')->where('gateway', 'paghiper')->where('setting', 'issue_all')->value('value');
+        
+        $pixActive = ($issueAllPix == '1' || $issueAllPix == 'on');
+        $boletoActive = ($issueAllBoleto == '1' || $issueAllBoleto == 'on');
+
+        if (!$isPaghiper && !$pixActive && !$boletoActive) {
+            return []; // Nothing to generate
+        }
+
+        $is_pix = false;
+        if ($invoice->paymentmethod == 'paghiper_pix') {
+            $is_pix = true;
+        } elseif (!$isPaghiper) {
+            if ($pixActive) $is_pix = true; // PIX has priority if issue_all is active
+        }
         
         // 2. Fetch the Asset URL from PagHiper Module Logic
         // We simulate the module's URL generation to get the JSON response

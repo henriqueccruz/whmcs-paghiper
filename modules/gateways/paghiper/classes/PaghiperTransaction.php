@@ -51,9 +51,28 @@ class PaghiperTransaction {
 
             // Variáveis básicas para nossa operação. Caso algo falhe aqui, não será possível inicializar o gateway.
             $this->gatewayName = $this->invoiceData['paymentmethod'];
+
+            // Se o método original da fatura não for paghiper, checamos os issue_all (Fallback automático)
+            if(!str_contains($this->gatewayName, 'paghiper')) {
+                $issueAllPix = Capsule::table('tblpaymentgateways')->where('gateway', 'paghiper_pix')->where('setting', 'issue_all')->value('value');
+                $issueAllBoleto = Capsule::table('tblpaymentgateways')->where('gateway', 'paghiper')->where('setting', 'issue_all')->value('value');
+                
+                // Prioriza o PIX se estiver com issue_all ativo
+                if ($issueAllPix == '1' || $issueAllPix == 'on') {
+                    $this->gatewayName = 'paghiper_pix';
+                } elseif ($issueAllBoleto == '1' || $issueAllBoleto == 'on') {
+                    $this->gatewayName = 'paghiper';
+                }
+            }
+            
+            // Hooks externos podem forçar qual transação deve ser gerada/puxada (Boleto vs PIX)
+            if (isset($transactionParams['forceGateway'])) {
+                $this->gatewayName = $transactionParams['forceGateway'];
+            }
+
             $this->isPIX       = ($this->gatewayName == 'paghiper_pix');
 
-            // Saímos do fluxo, caso o método de pagamento não seja Paghiper.
+            // Saímos do fluxo, caso o método de pagamento não seja Paghiper (nem original nem via issue_all).
             if(!str_contains($this->gatewayName, 'paghiper')) {
                 $this->isGatewayAvailable = false;
             }
