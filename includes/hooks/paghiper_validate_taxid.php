@@ -29,6 +29,10 @@ function paghiper_clientValidateTaxId($vars) {
         return;
     }
 
+    if (empty($gatewayConfig['tax_id_validation']) || ($gatewayConfig['tax_id_validation'] != 'on' && $gatewayConfig['tax_id_validation'] != '1')) {
+        return;
+    }
+
     if (empty($gatewayConfig['cpf_cnpj'])) {
         return;
     }
