@@ -24,12 +24,17 @@ use Illuminate\Database\Capsule\Manager as Capsule;
  */
 add_hook('EmailPreSend', 1, function($vars) {
     // 1. Auto-Heal Check (Runs before any email is sent to ensure PDF is ready)
-    $auto_heal = Capsule::table('tblpaymentgateways')
+    $auto_heal_boleto = Capsule::table('tblpaymentgateways')
         ->where('gateway', 'paghiper')
         ->where('setting', 'auto_pdf_integration')
         ->value('value');
+        
+    $auto_heal_pix = Capsule::table('tblpaymentgateways')
+        ->where('gateway', 'paghiper_pix')
+        ->where('setting', 'auto_pdf_integration')
+        ->value('value');
 
-    if ($auto_heal == 'on' || $auto_heal == '1') {
+    if ($auto_heal_boleto == 'on' || $auto_heal_boleto == '1' || $auto_heal_pix == 'on' || $auto_heal_pix == '1') {
         $integrator_path = ROOTDIR . '/modules/gateways/paghiper/inc/helpers/integrate_pdf_template.php';
         if (file_exists($integrator_path)) {
             require_once($integrator_path);

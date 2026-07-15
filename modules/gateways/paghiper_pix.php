@@ -16,40 +16,66 @@ use WHMCS\User\Client;
 // Opções padrão do Gateway
 function paghiper_pix_config($params = NULL) {
 
+    require_once __DIR__ . '/paghiper/inc/helpers/integrate_pdf_template.php';
+    $integrator = new PaghiperPdfInvoiceIntegrator();
+
     // Intercept AJAX actions from our Custom UI
-    if (isset($_POST['paghiper_action'])) {
+    if (isset($_POST['paghiper_action']) && $_POST['paghiper_action'] != 'analyze_email_templates') {
+        PaghiperPdfInvoiceIntegrator::handleAjaxActions();
+    }
+        
+    if (isset($_POST['paghiper_action']) && $_POST['paghiper_action'] == 'analyze_email_templates') {
         ob_clean();
         header('Content-Type: application/json');
         
-        $action = $_POST['paghiper_action'];
+        $templates_str = $_POST['templates'] ?? '';
+        $module_type = $_POST['module'] ?? 'paghiper'; // paghiper or paghiper_pix
+        $templates = array_map('trim', explode(',', $templates_str));
+        $required_tag = ($module_type == 'paghiper_pix') ? '{$codigo_pix}' : '{$linha_digitavel}';
         
-        if ($action == 'analyze_email_templates') {
-            $templates_str = $_POST['templates'] ?? '';
-            $module_type = $_POST['module'] ?? 'paghiper'; // paghiper or paghiper_pix
-            $templates = array_map('trim', explode(',', $templates_str));
-            $required_tag = ($module_type == 'paghiper_pix') ? '{$codigo_pix}' : '{$linha_digitavel}';
-            
-            $results = [];
-            foreach ($templates as $tplName) {
-                if (empty($tplName)) continue;
-                $db_results = \Illuminate\Database\Capsule\Manager::table('tblemailtemplates')
-                    ->where('name', $tplName)
-                    ->get();
-                    
-                $results[$tplName] = [];
-                foreach ($db_results as $row) {
-                    $lang = empty($row->language) ? 'Default' : ucfirst($row->language);
-                    $hasTag = (strpos($row->message, $required_tag) !== false);
-                    $results[$tplName][] = [
-                        'language' => $lang,
-                        'id' => $row->id,
-                        'integrated' => $hasTag
-                    ];
+        $names = $integrator->getFriendlyNames();
+        $currentFriendlyName = ($module_type == 'paghiper_pix') ? $names['paghiper_pix'] : $names['paghiper'];
+        
+        $results = [];
+        foreach ($templates as $tplName) {
+            if (empty($tplName)) continue;
+            $db_results = \Illuminate\Database\Capsule\Manager::table('tblemailtemplates')
+                ->where('name', $tplName)
+                ->get();
+                
+            $results[$tplName] = [];
+            foreach ($db_results as $row) {
+                $lang = empty($row->language) ? 'Default' : ucfirst($row->language);
+                $hasTag = (strpos($row->message, $required_tag) !== false);
+                $isIntegrated = $hasTag;
+                
+                if ($hasTag) {
+                    if (preg_match_all('/(?:if|elseif)\s+\$invoice_payment_method\s+eq\s+[\'"]([^\'"]+)[\'"]/i', $row->message, $matches)) {
+                        $foundNames = $matches[1];
+                        $hasCurrentName = in_array($currentFriendlyName, $foundNames);
+                        $hasElse = (stripos($row->message, '{else}') !== false);
+                        
+                        if (!$hasCurrentName && !$hasElse) {
+                            $defaultNames = ['PagHiper', 'PagHiper PIX', 'PagHiper Boleto', 'Boleto', 'PIX'];
+                            foreach ($defaultNames as $dn) {
+                                if (in_array($dn, $foundNames) && $currentFriendlyName !== $dn) {
+                                    $isIntegrated = false; // Name mismatch!
+                                    break;
+                                }
+                            }
+                        }
+                    }
                 }
+                
+                $results[$tplName][] = [
+                    'language' => $lang,
+                    'id' => $row->id,
+                    'integrated' => $isIntegrated
+                ];
             }
-            echo json_encode(['success' => true, 'analysis' => $results, 'required_tag' => $required_tag]);
-            exit;
         }
+        echo json_encode(['success' => true, 'analysis' => $results, 'required_tag' => $required_tag]);
+        exit;
     }
 
     $custom_fields_conf = paghiper_get_customfield_id();
@@ -162,6 +188,11 @@ Sempre começa por apk_. Caso não tenha essa informação, pegue sua chave API 
             "Default" => "admin",
             "Description" => "Insira o nome de usuário ou ID do administrador do WHMCS que será atribuído as transações. Necessário para usar a API interna do WHMCS."
         ],
+        'issue_all' => [
+            "FriendlyName" => "Gerar para todos os pedidos?",
+            "Type" => "yesno",
+            "Description" => "Ao marcar, todo pedido (com valor mínimo aceito) gerará boleto/PIX PagHiper na mesma hora."
+        ],
         'email_templates' => [
             "FriendlyName" => "Templates de E-mail (Interno)",
             "Type" => "text",
@@ -171,6 +202,15 @@ Sempre começa por apk_. Caso não tenha essa informação, pegue sua chave API 
         'ui_email_templates' => [
             "FriendlyName" => "Templates de E-mail",
             "Description" => "<div id='paghiper_row_ui_email_templates'></div><script src=\"{$jsUrl}?v=" . time() . "\"></script>"
+        ],
+        'auto_pdf_integration' => [
+            "FriendlyName" => "Customização Automática do PDF (Auto-Heal)",
+            "Type" => "yesno",
+            "Description" => "Se marcado, o sistema verificará silenciosamente se o template PDF possui o bloco do PagHiper antes do envio de cada fatura. Caso o lojista troque de tema, o sistema tentará reinstalar o bloco do código automaticamente."
+        ],
+        'ui_injector' => [
+            "FriendlyName" => "Configuração de Integração (PDF & Email)",
+            "Description" => "<div id='paghiper_row_ui_injector'>" . $integrator->renderIntegrationUI('paghiper_pix') . "</div>"
         ],
         'suporte' => [
             "FriendlyName" => "<span class='label label-primary'><i class='fa fa-question-circle'></i> Suporte</span>",

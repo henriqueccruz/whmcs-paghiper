@@ -11,123 +11,71 @@
  * @link       https://www.paghiper.com/
  */
 
-function paghiper_render_integration_ui() {
-    $systemUrl = rtrim(\App::getSystemUrl(), "/");
-    $jsUrl = $systemUrl . '/modules/gateways/paghiper/assets/js/admin_tabs.js';
-    
-    // Fallback if accessed via CLI or early boot where App::getSystemUrl might not be fully accurate for admin
-    // In WHMCS, the asset URL is always predictable from the module dir.
-    
-    require_once __DIR__ . '/paghiper/inc/helpers/integrate_pdf_template.php';
-    $integrator = new PaghiperPdfInvoiceIntegrator();
-    
-    // We get the active template by default
-    $activeTemplate = \Illuminate\Database\Capsule\Manager::table('tblconfiguration')->where('setting', 'Template')->value('value');
-    
-    $templates = $integrator->getAvailableTemplates();
-    if (!in_array($activeTemplate, $templates)) $templates[] = $activeTemplate;
-    
-    $isIntegrated = $integrator->isTplIntegrated($integrator->getPdfInvoiceTplPath($activeTemplate));
-    
-    $html = '<div style="background:#f8f9fa; border:1px solid #ddd; padding:15px; border-radius:4px; max-width: 600px;">';
-    $html .= '<h4>Gerenciamento da Integração de Boleto/PIX no PDF</h4>';
-    $html .= '<p>O módulo precisa adicionar uma linha de código ao arquivo <code>invoicepdf.tpl</code> do seu tema para poder anexar boletos e PIX aos e-mails enviados aos clientes.</p>';
-    
-    $html .= '<div style="margin-bottom:15px;"><strong>Status: </strong> <span id="paghiper-int-status">';
-    $html .= $isIntegrated ? '<span style="color:green;font-weight:bold;">Integrado</span>' : '<span style="color:red;font-weight:bold;">Não Integrado</span>';
-    $html .= '</span></div>';
-    
-    $html .= '<div class="form-group"><label>Template Alvo:</label><br>';
-    $html .= '<select id="paghiper-template-selector" class="form-control" style="max-width: 300px; display:inline-block;">';
-    foreach ($templates as $tpl) {
-        $sel = ($tpl == $activeTemplate) ? 'selected' : '';
-        $html .= "<option value=\"{$tpl}\" {$sel}>{$tpl} " . (($tpl == $activeTemplate) ? '(Ativo)' : '') . "</option>";
-    }
-    $html .= '</select>';
-    $html .= ' <button id="paghiper-force-integration" class="btn btn-primary btn-sm">Integrar</button></div>';
-    
-    $html .= '<div style="margin-top: 10px;">';
-    $html .= '<label style="font-weight:normal; font-size:12px; color:#555;">';
-    $html .= '<input type="checkbox" id="paghiper-custom-auto-pdf"> <strong style=" font-size:14px;">Customização Automática do PDF (Auto-Heal)</strong><br> Se marcado, o sistema verificará silenciosamente se o template PDF possui o bloco do PagHiper antes do envio de cada fatura, e caso o tema da sua instalação seja atualizado ou trocado, o sistema atualizará a integração automaticamente.';
-    $html .= '</label></div>';
-    
-    $html .= '<hr>';
-    
-    $backups = $integrator->getBackups($activeTemplate);
-    $html .= '<div class="form-group"><label>Restaurar Backup:</label><br>';
-    $html .= '<select id="paghiper-backup-selector" class="form-control" style="max-width: 300px; display:inline-block;">';
-    if (empty($backups)) {
-        $html .= '<option value="">Nenhum backup disponível</option>';
-    } else {
-        foreach ($backups as $b) {
-            $html .= "<option value=\"{$b['filename']}\">{$b['filename']} ({$b['date']})</option>";
-        }
-    }
-    $html .= '</select>';
-    $disabled = empty($backups) ? 'disabled' : '';
-    $html .= ' <button id="paghiper-restore-backup" class="btn btn-danger btn-sm" ' . $disabled . '>Restaurar</button></div>';
-    
-    $html .= '</div>';
-    
-    // Inject the javascript
-    $html .= "<script src=\"{$jsUrl}?v=" . time() . "\"></script>";
-    
-    return $html;
-}
-
 // Opções padrão do Gateway
 function paghiper_config($params = NULL) {
+    require_once __DIR__ . '/paghiper/inc/helpers/integrate_pdf_template.php';
+    $integrator = new PaghiperPdfInvoiceIntegrator();
 
     // Intercept AJAX actions from our Custom UI
-    if (isset($_POST['paghiper_action'])) {
+    if (isset($_POST['paghiper_action']) && $_POST['paghiper_action'] != 'analyze_email_templates') {
+        require_once __DIR__ . '/paghiper/inc/helpers/integrate_pdf_template.php';
+        PaghiperPdfInvoiceIntegrator::handleAjaxActions();
+    }
+    
+    if (isset($_POST['paghiper_action']) && $_POST['paghiper_action'] == 'analyze_email_templates') {
         ob_clean();
         header('Content-Type: application/json');
+        
+        $templates_str = $_POST['templates'] ?? '';
+        $module_type = $_POST['module'] ?? 'paghiper'; // paghiper or paghiper_pix
+        $templates = array_map('trim', explode(',', $templates_str));
+        $required_tag = ($module_type == 'paghiper_pix') ? '{$codigo_pix}' : '{$linha_digitavel}';
+        
         require_once __DIR__ . '/paghiper/inc/helpers/integrate_pdf_template.php';
         $integrator = new PaghiperPdfInvoiceIntegrator();
-        $action = $_POST['paghiper_action'];
-        $template = $_POST['template'] ?? '';
+        $names = $integrator->getFriendlyNames();
+        $currentFriendlyName = ($module_type == 'paghiper_pix') ? $names['paghiper_pix'] : $names['paghiper'];
         
-        if ($action == 'get_status') {
-            $isIntegrated = $integrator->isTplIntegrated($integrator->getPdfInvoiceTplPath($template));
-            $backups = $integrator->getBackups($template);
-            echo json_encode(['status' => true, 'integrated' => $isIntegrated, 'backups' => $backups]);
-            exit;
-        } elseif ($action == 'force_integration') {
-            $result = $integrator->updatePdfInvoiceTpl($template);
-            echo json_encode(['success' => $result, 'error' => $result ? '' : 'Falha na integração. Verifique se o arquivo tem permissão de escrita.']);
-            exit;
-        } elseif ($action == 'restore_backup') {
-            $backup = $_POST['backup'] ?? '';
-            $result = $integrator->restoreBackup($template, $backup);
-            echo json_encode(['success' => $result, 'error' => $result ? '' : 'Falha ao restaurar o backup.']);
-            exit;
-        } elseif ($action == 'analyze_email_templates') {
-            $templates_str = $_POST['templates'] ?? '';
-            $module_type = $_POST['module'] ?? 'paghiper'; // paghiper or paghiper_pix
-            $templates = array_map('trim', explode(',', $templates_str));
-            $required_tag = ($module_type == 'paghiper_pix') ? '{$codigo_pix}' : '{$linha_digitavel}';
-            
-            $results = [];
-            foreach ($templates as $tplName) {
-                if (empty($tplName)) continue;
-                $db_results = \Illuminate\Database\Capsule\Manager::table('tblemailtemplates')
-                    ->where('name', $tplName)
-                    ->get();
-                    
-                $results[$tplName] = [];
-                foreach ($db_results as $row) {
-                    $lang = empty($row->language) ? 'Default' : ucfirst($row->language);
-                    $hasTag = (strpos($row->message, $required_tag) !== false);
-                    $results[$tplName][] = [
-                        'language' => $lang,
-                        'id' => $row->id,
-                        'integrated' => $hasTag
-                    ];
+        $results = [];
+        foreach ($templates as $tplName) {
+            if (empty($tplName)) continue;
+            $db_results = \Illuminate\Database\Capsule\Manager::table('tblemailtemplates')
+                ->where('name', $tplName)
+                ->get();
+                
+            $results[$tplName] = [];
+            foreach ($db_results as $row) {
+                $lang = empty($row->language) ? 'Default' : ucfirst($row->language);
+                $hasTag = (strpos($row->message, $required_tag) !== false);
+                $isIntegrated = $hasTag;
+                
+                if ($hasTag) {
+                    if (preg_match_all('/(?:if|elseif)\s+\$invoice_payment_method\s+eq\s+[\'"]([^\'"]+)[\'"]/i', $row->message, $matches)) {
+                        $foundNames = $matches[1];
+                        $hasCurrentName = in_array($currentFriendlyName, $foundNames);
+                        $hasElse = (stripos($row->message, '{else}') !== false);
+                        
+                        if (!$hasCurrentName && !$hasElse) {
+                            $defaultNames = ['PagHiper', 'PagHiper PIX', 'PagHiper Boleto', 'Boleto', 'PIX'];
+                            foreach ($defaultNames as $dn) {
+                                if (in_array($dn, $foundNames) && $currentFriendlyName !== $dn) {
+                                    $isIntegrated = false; // Name mismatch!
+                                    break;
+                                }
+                            }
+                        }
+                    }
                 }
+                
+                $results[$tplName][] = [
+                    'language' => $lang,
+                    'id' => $row->id,
+                    'integrated' => $isIntegrated
+                ];
             }
-            echo json_encode(['success' => true, 'analysis' => $results, 'required_tag' => $required_tag]);
-            exit;
         }
+        echo json_encode(['success' => true, 'analysis' => $results, 'required_tag' => $required_tag]);
+        exit;
     }
 
     $custom_fields_conf = paghiper_get_customfield_id();
@@ -261,12 +209,8 @@ Sempre começa por apk_. Caso não tenha essa informação, pegue sua chave API 
         ],
         "issue_all" => [
             "FriendlyName" => "Gerar boletos para todos os pedidos?",
-            'Type' => 'dropdown',
-            'Options' => [
-                '1'    => 'Sim',
-                '0'     => 'Não',
-            ],
-            'Description' => 'Caso selecione não, boletos bancários e lihnas digitáveis serão selecionadas somente caso o cliente selecione "Boleto Bancário" (ou o nome que você configurar no primeiro campo de configuração) como método de pagamento padrão.',
+            "Type" => "yesno",
+            "Description" => "Ao marcar, todo pedido (com valor mínimo aceito) gerará boleto PagHiper na mesma hora."
         ],
         "tax_id_validation" => [
             "FriendlyName" => "Validar campos de CPF/CNPJ no checkout?",
@@ -295,7 +239,7 @@ Sempre começa por apk_. Caso não tenha essa informação, pegue sua chave API 
         ],
         'ui_email_templates' => [
             "FriendlyName" => "Templates de E-mail",
-            "Description" => "<div id='paghiper_row_ui_email_templates'></div>"
+            "Description" => "<div id='paghiper_row_ui_email_templates'></div><script src=\"" . rtrim(\App::getSystemUrl(), "/") . "/modules/gateways/paghiper/assets/js/admin_tabs.js?v=" . time() . "\"></script>"
         ],
         'auto_pdf_integration' => [
             "FriendlyName" => "Customização Automática do PDF (Auto-Heal)",
@@ -304,7 +248,7 @@ Sempre começa por apk_. Caso não tenha essa informação, pegue sua chave API 
         ],
         'ui_injector' => [
             "FriendlyName" => "Configuração de Integração (PDF & Email)",
-            "Description" => "<div id='paghiper_row_ui_injector'>" . paghiper_render_integration_ui() . "</div>"
+            "Description" => "<div id='paghiper_row_ui_injector'>" . $integrator->renderIntegrationUI('paghiper') . "</div>"
         ],
         'suporte' => [
             "FriendlyName" => "<span class='label label-primary'><i class='fa fa-question-circle'></i> Suporte</span>",
