@@ -108,12 +108,11 @@ function paghiper_config($params = NULL) {
         ),
         "nota" => array(
             "FriendlyName" => "Nota",
-            "Description" => "
+            "Description" => "<div id='paghiper_row_nota'>
             <table>
                 <tbody>
                     <tr>
                         <td width='60%'><img src='https://s3.amazonaws.com/logopaghiper/whmcs/badge.oficial.png' style='max-width: 100%;'></td>
-                        <td>Versão <h2 style='font-weight: bold; margin-top: 0px; font-size: 300%;'>2.5.3</h2></td>
                         <td>Versão <h2 style='font-weight: bold; margin-top: 0px; font-size: 300%;'>2.5.4</h2></td>
                     </tr>
                 </tbody>
@@ -127,7 +126,7 @@ function paghiper_config($params = NULL) {
                <li>Gere o seu token PagHiper na página <a href='https://www.paghiper.com/painel/token/' target='_blank'><strong> Ferramentas > Token</strong></a> e pegue sua ApiKey na página <a href='https://www.paghiper.com/painel/token/' target='_blank'><strong>Minha Conta > Dados da Conta</strong></a></li>
                <li>Ative a integração entre o PagHiper e o <a href='https://www.paghiper.com/painel/whmcs' target='_blank'><strong>WHMCS</strong></a>, <a href='https://www.paghiper.com/painel/whmcs' target='_blank'><strong>Acesse aqui</strong></a> e ative.</li>
                <li><h5>Suporte</h5><p>Se tiver qualquer duvida, visite a nossa <a href='https://www.paghiper.com/atendimento/' target='_blank'><strong>central de atendimento</strong></a></p></li>
-           </ul>"
+           </ul></div>"
         ),
         
         'email' => array(
@@ -257,23 +256,33 @@ Sempre começa por apk_. Caso não tenha essa informação, pegue sua chave API 
             "Default" => "admin",
             "Description" => "Insira o nome de usuário ou ID do administrador do WHMCS que será atribuído as transações. Necessário para usar a API interna do WHMCS."
         ),
+        'email_templates' => array(
+            "FriendlyName" => "Templates de E-mail (Interno)",
+            "Type" => "text",
+            "Default" => "Invoice Created,Invoice Payment Reminder,First Invoice Overdue Notice,Second Invoice Overdue Notice,Third Invoice Overdue Notice",
+            "Description" => "<div id='paghiper_row_email_templates_hidden'></div>"
+        ),
+        'ui_email_templates' => array(
+            "FriendlyName" => "Templates de E-mail",
+            "Description" => "<div id='paghiper_row_ui_email_templates'></div>"
+        ),
         'ui_injector' => array(
             "FriendlyName" => "Configuração de Integração (PDF & Email)",
-            "Description" => paghiper_render_integration_ui()
+            "Description" => "<div id='paghiper_row_ui_injector'>" . paghiper_render_integration_ui() . "</div>"
         ),
         'suporte' => array(
             "FriendlyName" => "<span class='label label-primary'><i class='fa fa-question-circle'></i> Suporte</span>",
-            "Description" => '<h2>Para informações ou duvidas: </h2><br><br>
+            "Description" => "<div id='paghiper_row_suporte'><h2>Para informações ou duvidas: </h2><br><br>
 <ul>
 <li>Duvidas sobre a conta <strong> PAGHIPER:</strong> <br><br>
 Devem ser resolvidas diretamente na central de atendimento: <br>
-<strong><a href="https://www.paghiper.com/atendimento" target="_blank">https://www.paghiper.com/atendimento</a></strong></li>
+<strong><a href=\"https://www.paghiper.com/atendimento\" target=\"_blank\">https://www.paghiper.com/atendimento</a></strong></li>
 <br><br><br>
 <li>Duvidas sobre o <strong> Modulo WHMCS </strong> <br><br>
 Tem uma dúvida ou quer contribuir para o projeto? Acesse nosso repositório no GitHub!
 <br>
-<strong><a href="https://github.com/paghiper/whmcs" target="_blank">https://github.com/paghiper/whmcs</a></strong></li>
-</ul><br>'
+<strong><a href=\"https://github.com/paghiper/whmcs\" target=\"_blank\">https://github.com/paghiper/whmcs</a></strong></li>
+</ul><br></div>"
         )
        
     );

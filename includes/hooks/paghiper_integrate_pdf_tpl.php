@@ -28,13 +28,13 @@ add_hook('EmailPreSend', 1, function($vars) {
     $attachments = [];
 
     // Define which email templates should receive the attachment
-    $target_templates = [
-        'Invoice Created', 
-        'Invoice Payment Reminder', 
-        'First Invoice Overdue Notice', 
-        'Second Invoice Overdue Notice', 
-        'Third Invoice Overdue Notice'
-    ];
+    $db_templates = Capsule::table('tblpaymentgateways')
+        ->where('gateway', 'paghiper')
+        ->where('setting', 'email_templates')
+        ->value('value');
+        
+    $target_templates = $db_templates ? array_map('trim', explode(',', $db_templates)) : [];
+
 
     if (in_array($email_template, $target_templates) && $invoice_id) {
         

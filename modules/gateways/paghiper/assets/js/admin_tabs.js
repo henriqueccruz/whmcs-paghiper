@@ -1,5 +1,7 @@
 document.addEventListener("DOMContentLoaded", function() {
-    // Only run if we are on the Payment Gateways config page for PagHiper
+    if (window.paghiperTabsInitialized) return;
+    window.paghiperTabsInitialized = true;
+
     var isPaghiper = false;
     var forms = document.querySelectorAll("form");
     forms.forEach(function(f) {
@@ -10,23 +12,22 @@ document.addEventListener("DOMContentLoaded", function() {
     });
 
     function initPaghiperTabs(form) {
+        if (form.dataset.paghiperInit) return;
+        form.dataset.paghiperInit = "1";
+
         var table = form.querySelector("table.form");
         if (!table) return;
 
-        // Define groups
         var groups = {
             "Geral": ["nota", "FriendlyName", "email", "api_key", "token", "cpf_cnpj", "razao_social", "admin", "suporte"],
             "Taxas e Prazos": ["porcento", "taxa", "open_after_day_due", "reissue_unpaid", "late_payment_fine", "per_day_interest", "early_payment_discounts_days", "early_payment_discounts_cents"],
+            "Templates de E-mail": ["email_templates", "ui_email_templates"],
             "Avançado e Integração": ["issue_all", "tax_id_validation", "abrirauto", "fixed_description", "ui_injector"]
         };
 
-        // Create Tab UI
         var tabContainer = document.createElement("ul");
         tabContainer.className = "nav nav-tabs";
         tabContainer.style.marginBottom = "15px";
-
-        var tabContent = document.createElement("div");
-        tabContent.className = "tab-content";
 
         var first = true;
         for (var groupName in groups) {
@@ -39,16 +40,13 @@ document.addEventListener("DOMContentLoaded", function() {
             li.appendChild(a);
             tabContainer.appendChild(li);
 
-            // Tab click event
             a.addEventListener("click", function(e) {
                 e.preventDefault();
-                // Deactivate all
                 tabContainer.querySelectorAll("li").forEach(function(el) { el.classList.remove("active"); });
                 this.parentElement.classList.add("active");
                 
                 var activeGroup = this.dataset.group;
                 
-                // Show/hide rows
                 var rows = table.querySelectorAll("tr");
                 rows.forEach(function(row) {
                     var input = row.querySelector("[name^='field[']");
@@ -62,36 +60,83 @@ document.addEventListener("DOMContentLoaded", function() {
                                 row.style.display = "none";
                             }
                         }
-                    } else if (row.innerHTML.indexOf('ui_injector') !== -1 || row.innerHTML.indexOf('nota') !== -1 || row.innerHTML.indexOf('suporte') !== -1) {
-                        // Handle pseudo-fields (Description only)
-                        var text = row.innerText || row.textContent;
-                        var matched = false;
-                        groups[activeGroup].forEach(function(f) {
-                            if (text.indexOf(f) !== -1 || row.innerHTML.indexOf(f) !== -1) matched = true;
-                        });
-                        row.style.display = matched ? "" : "none";
+                    } else {
+                        // Handle pseudo-fields with wrappers
+                        if (row.querySelector('#paghiper_row_nota')) { row.style.display = (activeGroup === 'Geral') ? '' : 'none'; }
+                        if (row.querySelector('#paghiper_row_suporte')) { row.style.display = (activeGroup === 'Geral') ? '' : 'none'; }
+                        if (row.querySelector('#paghiper_row_ui_injector')) { row.style.display = (activeGroup === 'Avançado e Integração') ? '' : 'none'; }
+                        if (row.querySelector('#paghiper_row_ui_email_templates')) { row.style.display = (activeGroup === 'Templates de E-mail') ? '' : 'none'; }
                     }
                 });
             });
-
             first = false;
         }
 
         table.parentNode.insertBefore(tabContainer, table);
         
-        // Trigger click on first tab
         tabContainer.querySelector("a").click();
         
-        // Inject the Integration UI into the ui_injector row
         setupIntegrationUI();
+        setupEmailTemplatesUI(form);
+    }
+
+    function setupEmailTemplatesUI(form) {
+        var hiddenRow = form.querySelector('#paghiper_row_email_templates_hidden');
+        if (!hiddenRow) return;
+        
+        // Find the actual hidden input (the field `email_templates` rendered by WHMCS)
+        // Since it's a 'text' field, WHMCS renders it as <input type="text" name="field[email_templates]">
+        // The hiddenRow div is in the description. So we look up the tree to find the tr, then find the input.
+        var parentTr = hiddenRow.closest('tr');
+        if(parentTr) parentTr.style.display = 'none'; // Hide the entire row containing the native text input
+        
+        var inputEl = form.querySelector('input[name="field[email_templates]"]');
+        if (!inputEl) return;
+        
+        var uiContainer = document.getElementById('paghiper_row_ui_email_templates');
+        if (!uiContainer) return;
+        
+        var availableTemplates = [
+            'Invoice Created', 
+            'Invoice Payment Reminder', 
+            'First Invoice Overdue Notice', 
+            'Second Invoice Overdue Notice', 
+            'Third Invoice Overdue Notice'
+        ];
+        
+        var currentValues = inputEl.value.split(',').map(s => s.trim()).filter(s => s !== '');
+        
+        var html = '<div style="background:#f9f9f9; padding:15px; border:1px solid #ddd; border-radius:4px;">';
+        html += '<p>Selecione os e-mails nos quais o boleto ou código PIX serão anexados automaticamente (requer Integração do PDF ativada).</p>';
+        html += '<div class="checkbox-list">';
+        
+        availableTemplates.forEach(function(tpl) {
+            var checked = currentValues.indexOf(tpl) !== -1 ? 'checked' : '';
+            html += '<label style="display:block; margin-bottom:5px; font-weight:normal;">';
+            html += '<input type="checkbox" class="paghiper-email-tpl-cb" value="'+tpl+'" '+checked+'> ' + tpl;
+            html += '</label>';
+        });
+        
+        html += '</div></div>';
+        uiContainer.innerHTML = html;
+        
+        // Listen to changes and update the hidden text input
+        var checkboxes = uiContainer.querySelectorAll('.paghiper-email-tpl-cb');
+        checkboxes.forEach(function(cb) {
+            cb.addEventListener('change', function() {
+                var selected = [];
+                uiContainer.querySelectorAll('.paghiper-email-tpl-cb:checked').forEach(function(checkedCb) {
+                    selected.push(checkedCb.value);
+                });
+                inputEl.value = selected.join(',');
+            });
+        });
     }
 
     function setupIntegrationUI() {
-        // UI is loaded via PHP inside the Description of 'ui_injector'
-        // Let's bind events for the buttons
-        
         var forceBtn = document.getElementById('paghiper-force-integration');
-        if (forceBtn) {
+        if (forceBtn && !forceBtn.dataset.bound) {
+            forceBtn.dataset.bound = "1";
             forceBtn.addEventListener('click', function(e) {
                 e.preventDefault();
                 var tpl = document.getElementById('paghiper-template-selector').value;
@@ -100,7 +145,8 @@ document.addEventListener("DOMContentLoaded", function() {
         }
 
         var restoreBtn = document.getElementById('paghiper-restore-backup');
-        if (restoreBtn) {
+        if (restoreBtn && !restoreBtn.dataset.bound) {
+            restoreBtn.dataset.bound = "1";
             restoreBtn.addEventListener('click', function(e) {
                 e.preventDefault();
                 var tpl = document.getElementById('paghiper-template-selector').value;
@@ -116,9 +162,9 @@ document.addEventListener("DOMContentLoaded", function() {
         }
         
         var tplSelector = document.getElementById('paghiper-template-selector');
-        if(tplSelector) {
+        if(tplSelector && !tplSelector.dataset.bound) {
+            tplSelector.dataset.bound = "1";
             tplSelector.addEventListener('change', function() {
-                // Reload the page or fetch backups for the selected template via AJAX
                 submitAjaxAction('get_status', { template: this.value }, function(res) {
                     if(res.status) {
                         document.getElementById('paghiper-int-status').innerHTML = res.integrated ? '<span style="color:green;font-weight:bold;">Integrado</span>' : '<span style="color:red;font-weight:bold;">Não Integrado</span>';
@@ -153,7 +199,6 @@ document.addEventListener("DOMContentLoaded", function() {
             formData.append(key, data[key]);
         }
         
-        // We post to the current URL
         fetch(window.location.href, {
             method: 'POST',
             body: formData

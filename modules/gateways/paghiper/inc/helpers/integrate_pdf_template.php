@@ -4,8 +4,7 @@ use Illuminate\Database\Capsule\Manager as Capsule;
 
 class PaghiperPdfInvoiceIntegrator {
 
-    private $cacheManager,
-            $version,
+    private $version,
             $activeTemplate,
             $parentTemplate = NULL,
             $tplPath = NULL;
@@ -17,13 +16,6 @@ class PaghiperPdfInvoiceIntegrator {
                 require_once($initPath);
             }
         }
-
-        $cacheMethod = \WHMCS\Config\Setting::getValue('Cache_Driver');
-        $this->cacheManager = \WHMCS\Cache\Manager::factory($cacheMethod);
-
-        // Somente roda o update se instanciado no cron ou painel (sem ação específica)
-        // updatePdfInvoiceTpl() is explicitly called when needed, or left here if auto-heal is desired
-        // but we'll leave the auto-heal logic active unless we pass a param to skip.
     }
 
     public function autoHeal() {
@@ -81,13 +73,11 @@ class PaghiperPdfInvoiceIntegrator {
 
         foreach ($paths as $path) {
             if (file_exists($path)) {
-                $this->cacheManager->delete('paghiper_pdf_int_nopath');
                 $this->tplPath = $path;
                 return $path;
             }
         }
 
-        $this->cacheManager->set('paghiper_pdf_int_nopath', true, 3600);
         return null;
     }
 
@@ -113,12 +103,12 @@ class PaghiperPdfInvoiceIntegrator {
         $tplBackupPath = dirname($tplFilePath) . "/invoicepdf_backup_{$localTime}.tpl";
 
         if (!copy($tplFilePath, $tplBackupPath)) {
-             $this->cacheManager->set('paghiper_pdf_int_backup_err', "Could not create backup at $tplBackupPath", 3600);
+             logActivity("PagHiper: Erro ao realizar backup de invoicepdf.tpl antes da integração. Integração abortada.");
              return false; 
         }
 
         if (!is_writable($tplFilePath)) {
-             $this->cacheManager->set('paghiper_pdf_int_perms', "File not writable", 3600);
+             logActivity("PagHiper: O arquivo invoicepdf.tpl não tem permissão de escrita. Integração abortada.");
              return false;
         }
 
@@ -133,7 +123,7 @@ class PaghiperPdfInvoiceIntegrator {
 
         if ($newCode === $code) {
              // Regex falhou, talvez a tag <?php esteja escrita de forma diferente ou não exista.
-             $this->cacheManager->set('paghiper_pdf_int_cant_update', "Não foi possível localizar a tag <?php no início do arquivo.", 3600);
+             logActivity("PagHiper: Não foi possível injetar o código no invoicepdf.tpl. Tag <?php não encontrada.");
              return false;
         }
 
@@ -145,7 +135,7 @@ class PaghiperPdfInvoiceIntegrator {
 
             if ($tplUpdate === false) {
                 $error = error_get_last();
-                $this->cacheManager->set('paghiper_pdf_int_cant_update', ($error['message'] ?? 'Erro desconhecido'), 3600);
+                logActivity("PagHiper: Falha ao escrever arquivo invoicepdf.tpl. Erro: " . ($error['message'] ?? 'Desconhecido'));
                 return false;
             } else {
                 \WHMCS\Config\Setting::setValue('Paghiper_InvoicePdf_Origin_TplHash', $originalFileHash);
@@ -154,13 +144,12 @@ class PaghiperPdfInvoiceIntegrator {
                 
                 $smarty = new \WHMCS\Smarty();
                 $smarty->clearCompiledTemplate();
-
-                $this->cacheManager->delete('paghiper_pdf_int_cant_update');
                 
+                logActivity("PagHiper: Integração ao arquivo invoicepdf.tpl realizada com sucesso.");
                 return true;
             }
         } catch (Exception $e) {
-            $this->cacheManager->set('paghiper_pdf_int_cant_update', $e->getMessage(), 3600);
+            logActivity("PagHiper: Erro inesperado ao integrar invoicepdf.tpl: " . $e->getMessage());
             return false;
         }
     }
