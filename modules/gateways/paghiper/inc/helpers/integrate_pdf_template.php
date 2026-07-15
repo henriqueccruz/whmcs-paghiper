@@ -211,5 +211,105 @@ class PaghiperPdfInvoiceIntegrator {
         }
         return false;
     }
+
+    public function getFriendlyNames() {
+        return [
+            'paghiper' => Capsule::table('tblpaymentgateways')->where('gateway', 'paghiper')->where('setting', 'name')->value('value') ?: 'PagHiper',
+            'paghiper_pix' => Capsule::table('tblpaymentgateways')->where('gateway', 'paghiper_pix')->where('setting', 'name')->value('value') ?: 'PagHiper PIX'
+        ];
+    }
+
+    public function renderIntegrationUI($moduleName) {
+        $systemUrl = rtrim(\App::getSystemUrl(), "/");
+        $jsUrl = $systemUrl . '/modules/gateways/paghiper/assets/js/admin_tabs.js';
+        
+        $activeTemplate = Capsule::table('tblconfiguration')->where('setting', 'Template')->value('value');
+        $templates = $this->getAvailableTemplates();
+        if (!in_array($activeTemplate, $templates)) $templates[] = $activeTemplate;
+        
+        $isIntegrated = $this->isTplIntegrated($this->getPdfInvoiceTplPath($activeTemplate));
+        
+        $names = $this->getFriendlyNames();
+        $namesJson = htmlspecialchars(json_encode($names), ENT_QUOTES, 'UTF-8');
+        
+        $issueAllBoleto = Capsule::table('tblpaymentgateways')->where('gateway', 'paghiper')->where('setting', 'issue_all')->value('value');
+        $issueAllPix = Capsule::table('tblpaymentgateways')->where('gateway', 'paghiper_pix')->where('setting', 'issue_all')->value('value');
+        
+        $issueAllConfig = [
+            'paghiper' => ($issueAllBoleto == '1' || $issueAllBoleto == 'on'),
+            'paghiper_pix' => ($issueAllPix == '1' || $issueAllPix == 'on')
+        ];
+        $issueAllJson = htmlspecialchars(json_encode($issueAllConfig), ENT_QUOTES, 'UTF-8');
+
+        $html = "<div style=\"background:#f8f9fa; border:1px solid #ddd; padding:15px; border-radius:4px; max-width: 600px;\" data-friendly-names=\"{$namesJson}\" data-issue-all=\"{$issueAllJson}\" class=\"paghiper-integration-ui-container\">";
+        $html .= '<h4>Gerenciamento da Integração de Boleto/PIX no PDF</h4>';
+        $html .= '<p>O módulo precisa adicionar uma linha de código ao arquivo <code>invoicepdf.tpl</code> do seu tema para poder anexar boletos e PIX aos e-mails enviados aos clientes.</p>';
+        
+        $html .= '<div style="margin-bottom:15px;"><strong>Status: </strong> <span id="paghiper-int-status">';
+        $html .= $isIntegrated ? '<span style="color:green;font-weight:bold;">Integrado</span>' : '<span style="color:red;font-weight:bold;">Não Integrado</span>';
+        $html .= '</span></div>';
+        
+        $html .= '<div class="form-group"><label>Template Alvo:</label><br>';
+        $html .= '<select id="paghiper-template-selector" class="form-control" style="max-width: 300px; display:inline-block;">';
+        foreach ($templates as $tpl) {
+            $sel = ($tpl == $activeTemplate) ? 'selected' : '';
+            $html .= "<option value=\"{$tpl}\" {$sel}>{$tpl} " . (($tpl == $activeTemplate) ? '(Ativo)' : '') . "</option>";
+        }
+        $html .= '</select>';
+        $html .= ' <button id="paghiper-force-integration" class="btn btn-primary btn-sm">Integrar</button></div>';
+        
+        $html .= '<div style="margin-top: 10px;">';
+        $html .= '<label style="font-weight:normal; font-size:12px; color:#555;">';
+        $html .= '<input type="checkbox" id="paghiper-custom-auto-pdf"> <strong style=" font-size:14px;">Customização Automática do PDF (Auto-Heal)</strong><br> Se marcado, o sistema verificará silenciosamente se o template PDF possui o bloco do PagHiper antes do envio de cada fatura, e caso o tema da sua instalação seja atualizado ou trocado, o sistema atualizará a integração automaticamente.';
+        $html .= '</label></div>';
+        
+        $html .= '<hr>';
+        
+        $backups = $this->getBackups($activeTemplate);
+        $html .= '<div class="form-group"><label>Restaurar Backup:</label><br>';
+        $html .= '<select id="paghiper-backup-selector" class="form-control" style="max-width: 300px; display:inline-block;">';
+        if (empty($backups)) {
+            $html .= '<option value="">Nenhum backup disponível</option>';
+        } else {
+            foreach ($backups as $b) {
+                $html .= "<option value=\"{$b['filename']}\">{$b['filename']} ({$b['date']})</option>";
+            }
+        }
+        $html .= '</select>';
+        $disabled = empty($backups) ? 'disabled' : '';
+        $html .= ' <button id="paghiper-restore-backup" class="btn btn-danger btn-sm" ' . $disabled . '>Restaurar</button></div>';
+        $html .= '</div>';
+        $html .= "<script src=\"{$jsUrl}?v=" . time() . "\"></script>";
+        
+        return $html;
+    }
+
+    public static function handleAjaxActions() {
+        if (isset($_POST['paghiper_action'])) {
+            $action = $_POST['paghiper_action'];
+            if (in_array($action, ['get_status', 'force_integration', 'restore_backup'])) {
+                ob_clean();
+                header('Content-Type: application/json');
+                $integrator = new self();
+                $template = $_POST['template'] ?? '';
+                
+                if ($action == 'get_status') {
+                    $isIntegrated = $integrator->isTplIntegrated($integrator->getPdfInvoiceTplPath($template));
+                    $backups = $integrator->getBackups($template);
+                    echo json_encode(['status' => true, 'integrated' => $isIntegrated, 'backups' => $backups]);
+                    exit;
+                } elseif ($action == 'force_integration') {
+                    $result = $integrator->updatePdfInvoiceTpl($template);
+                    echo json_encode(['success' => $result, 'error' => $result ? '' : 'Falha na integração. Verifique se o arquivo tem permissão de escrita.']);
+                    exit;
+                } elseif ($action == 'restore_backup') {
+                    $backup = $_POST['backup'] ?? '';
+                    $result = $integrator->restoreBackup($template, $backup);
+                    echo json_encode(['success' => $result, 'error' => $result ? '' : 'Falha ao restaurar backup. Verifique permissões.']);
+                    exit;
+                }
+            }
+        }
+    }
 }
 

@@ -146,11 +146,55 @@ document.addEventListener("DOMContentLoaded", function() {
         html += '</div>';
         
         // Add advanced smarty snippet suggestion
+        var friendlyNames = { paghiper: 'PagHiper', paghiper_pix: 'PagHiper PIX' };
+        var issueAll = { paghiper: false, paghiper_pix: false };
+        var integrationContainer = form.querySelector('.paghiper-integration-ui-container');
+        if (integrationContainer) {
+            try {
+                friendlyNames = JSON.parse(integrationContainer.dataset.friendlyNames);
+                issueAll = JSON.parse(integrationContainer.dataset.issueAll);
+            } catch(e) {}
+        }
+        
         html += '<p style="margin-top:15px; margin-bottom:5px;"><strong>Dica Avançada:</strong> Se desejar personalizar o corpo do e-mail incluindo os dados de pagamento de forma inteligente, copie e cole o bloco condicional abaixo no seu template (Menu <i>Setup > Email Templates</i>):</p>';
-        html += '<pre style="background:#fff; padding:10px; border:1px solid #ccc; font-size:11px; margin-bottom:0;">{if $invoice_payment_method eq "PagHiper PIX"}<br>  {$codigo_pix}<br>{elseif $invoice_payment_method eq "PagHiper"}<br>  {$linha_digitavel}<br>{/if}</pre>';
+        html += '<pre class="paghiper-smarty-snippet-box" style="background:#fff; padding:10px; border:1px solid #ccc; font-size:11px; margin-bottom:0;"></pre>';
         
         html += '</div>';
         uiContainer.innerHTML = html;
+        
+        function updateSnippetUI() {
+            var snippet = '';
+            var pixIssueAll = issueAll.paghiper_pix;
+            var boletoIssueAll = issueAll.paghiper;
+            
+            var domIssueAll = form.querySelector('input[type="checkbox"][name="field[issue_all]"]');
+            if (domIssueAll) {
+                var isPixModule = window.location.href.indexOf('paghiper_pix') !== -1 || form.innerHTML.indexOf('Frase fixa no PIX') !== -1 || form.innerHTML.indexOf('PAGHIPER PIX') !== -1;
+                if (isPixModule) {
+                    pixIssueAll = domIssueAll.checked;
+                } else {
+                    boletoIssueAll = domIssueAll.checked;
+                }
+            }
+            
+            if (pixIssueAll) {
+                snippet = '{if $invoice_payment_method eq "' + friendlyNames.paghiper + '"}<br>  {$linha_digitavel}<br>{else}<br>  {$codigo_pix}<br>{/if}';
+            } else if (boletoIssueAll) {
+                snippet = '{if $invoice_payment_method eq "' + friendlyNames.paghiper_pix + '"}<br>  {$codigo_pix}<br>{else}<br>  {$linha_digitavel}<br>{/if}';
+            } else {
+                snippet = '{if $invoice_payment_method eq "' + friendlyNames.paghiper_pix + '"}<br>  {$codigo_pix}<br>{elseif $invoice_payment_method eq "' + friendlyNames.paghiper + '"}<br>  {$linha_digitavel}<br>{/if}';
+            }
+            
+            var box = form.querySelector('.paghiper-smarty-snippet-box');
+            if (box) box.innerHTML = snippet;
+        }
+        
+        updateSnippetUI();
+        
+        var domIssueAllCb = form.querySelector('input[type="checkbox"][name="field[issue_all]"]');
+        if (domIssueAllCb) {
+            domIssueAllCb.addEventListener('change', updateSnippetUI);
+        }
         
         // Listen to changes and update the hidden text input
         var checkboxes = uiContainer.querySelectorAll('.paghiper-email-tpl-cb');
