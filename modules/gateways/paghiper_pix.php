@@ -57,14 +57,14 @@ function paghiper_pix_config($params = NULL) {
     $systemUrl = rtrim(\App::getSystemUrl(), "/");
     $jsUrl = $systemUrl . '/modules/gateways/paghiper/assets/js/admin_tabs.js';
 
-    $config = array(
-        'FriendlyName' => array(
+    $config = [
+        'FriendlyName' => [
             "Type" => "System",
             "Value" => "PagHiper PIX"
-		),
-        "nota" => array(
+		],
+        "nota" => [
             "FriendlyName" => "Nota",
-            "Description" => "
+            "Description" => "<div id='paghiper_row_nota'></div>
             <table>
                 <tbody>
                     <tr>
@@ -83,68 +83,68 @@ function paghiper_pix_config($params = NULL) {
                <li>Ative a integração entre o PagHiper e o <a href='https://www.paghiper.com/painel/whmcs' target='_blank'><strong>WHMCS</strong></a>, <a href='https://www.paghiper.com/painel/whmcs' target='_blank'><strong>Acesse aqui</strong></a> e ative.</li>
                <li><h5>Suporte</h5><p>Se tiver qualquer duvida, visite a nossa <a href='https://www.paghiper.com/atendimento/' target='_blank'><strong>central de atendimento</strong></a></p></li>
            </ul>"
-        ),
-        'email' => array(
+        ],
+        'email' => [
             "FriendlyName" => "Email",
             "Type" => "text",
             "Size" => "100",
             "Description" => "Email da conta PagHiper que irá receber"
-        ),
-        'api_key' => array(
+        ],
+        'api_key' => [
             "FriendlyName" => "API Key",
             "Type" => "text",
             "Size" => "66",
             "Description" => "Campo composto de números, letras, traços e hífen.
 Sempre começa por apk_. Caso não tenha essa informação, pegue sua chave API <a href='https://www.paghiper.com/painel/credenciais/' target='_blank'><strong>aqui</strong></a>."
-        ),
-        'token' => array(
+        ],
+        'token' => [
             "FriendlyName" => "Token",
             "Type" => "text",
             "Size" => "66",
             "Description" => "Extremamente importante, você pode gerar seu token em nossa pagina: Painel > Ferramentas > Token ( <a href='https://www.paghiper.com/painel/token/' target='_blank'><strong>Confira Aqui</strong></a> )."
-        ),
-        "cpf_cnpj" => array(
+        ],
+        "cpf_cnpj" => [
             "FriendlyName" => "ID do custom field contendo CPF/CNPJ",
             "Type" => "text",
             "Size" => "3",
             "Description" => "Defina aqui o ID do campo usado para coletar CPF/CNPJ do seu cliente. Isso é necessário para usar o checkout transparente." . $custom_fields_conf
-        ),
-        "razao_social" => array(
+        ],
+        "razao_social" => [
             "FriendlyName" => "ID do custom field contendo Razão Social",
             "Type" => "text",
             "Size" => "3",
             "Description" => "Defina aqui o ID do campo usado, caso utilize um campo personalizado para coletar a Razão Social do seu cliente. Isso é opcional."
-        ),
-        "negar_sem_company_razao" => array(
+        ],
+        "negar_sem_company_razao" => [
             "FriendlyName" => "Negar emissões pra CNPJs sem Razão Social?",
             "Type" => "yesno",
             "Description" => "Marque essa opção caso não queira aceitar faturar para CNPJs mesmo que o campo de nome da Empresa ou Razão Social estejam vazios."
-        ),
-        "porcento" => array(
+        ],
+        "porcento" => [
             "FriendlyName" => "Taxa Percentual (%)",
             "Type" => "text",
             "Size" => "3",
             "Description" => "Porcentagem da fatura a se pagar a mais por usar o PagHiper. Ex.: (2.5). Obs.: não precisa colocar o % no final. Obs²: Use o ponto (.) como delimitador de casas decimais. <br> Recomendamos não cobrar nenhuma taxa."
-        ),
-        "taxa" => array(
+        ],
+        "taxa" => [
             "FriendlyName" => "Taxa fixa",
             "Type" => "text",
             "Size" => "7",
             "Description" => "Taxa cobrada a mais do cliente por utilizar esse meio de pagamento, exemplo: 2.0 (dois reais). Obs: Use o ponto (.) como delimitador de casas decimais.<br> Recomendamos não cobrar nenhuma taxa."
-        ),
-        "issue_all" => array(
+        ],
+        "issue_all" => [
             "FriendlyName" => "Gerar PIX para todos os pedidos?",
             'Type' => 'dropdown',
-            'Options' => array(
+            'Options' => [
                 '1'    => 'Sim',
                 '0'     => 'Não',
-            ),
+            ],
             'Description' => 'Caso selecione não, o PIX será gerado somente se o cliente selecionar "PagHiper PIX" (ou o nome configurado acima) como método de pagamento padrão.',
-        ),
-        "reissue_unpaid" => array(
+        ],
+        "reissue_unpaid" => [
             "FriendlyName" => "Vencimento padrão para PIX emitidos",
             'Type' => 'dropdown',
-            'Options' => array(
+            'Options' => [
                 '-1'    => 'Não permitir reemissão',
                 '0'     => 'Vcto. no mesmo dia',
                 '1'     => '+1 dia',
@@ -152,29 +152,29 @@ Sempre começa por apk_. Caso não tenha essa informação, pegue sua chave API 
                 '3'     => '+3 dias',
                 '4'     => '+4 dias',
                 '5'     => '+5 dias',
-            ),
+            ],
             'Description' => 'Escolha a quantidade de dias para o vencimento para os PIX reemitidos (para faturas ja vencidas). Caso decida não permitir reemissão, você precisará mudar a data de vencimento manualmente.',
-        ),
-        "admin" => array(
+        ],
+        "admin" => [
             "FriendlyName" => "Administrador atribuído",
             "Type" => "text",
             "Size" => "10",
             "Default" => "admin",
             "Description" => "Insira o nome de usuário ou ID do administrador do WHMCS que será atribuído as transações. Necessário para usar a API interna do WHMCS."
-        ),
-        'email_templates' => array(
+        ],
+        'email_templates' => [
             "FriendlyName" => "Templates de E-mail (Interno)",
             "Type" => "text",
             "Default" => "Invoice Created,Invoice Payment Reminder,First Invoice Overdue Notice,Second Invoice Overdue Notice,Third Invoice Overdue Notice",
             "Description" => "<div id='paghiper_row_email_templates_hidden'></div>"
-        ),
-        'ui_email_templates' => array(
+        ],
+        'ui_email_templates' => [
             "FriendlyName" => "Templates de E-mail",
             "Description" => "<div id='paghiper_row_ui_email_templates'></div><script src=\"{$jsUrl}?v=" . time() . "\"></script>"
-        ),
-        'suporte' => array(
+        ],
+        'suporte' => [
             "FriendlyName" => "<span class='label label-primary'><i class='fa fa-question-circle'></i> Suporte</span>",
-			"Description" => '<h2>Para informações ou duvidas: </h2><br><br>
+			"Description" => '<div id="paghiper_row_suporte"></div><h2>Para informações ou duvidas: </h2><br><br>
 			<ul>
 			<li>Duvidas sobre a conta <strong> PAGHIPER:</strong> <br><br>
 			Devem ser resolvidas diretamente na central de atendimento: <br>
@@ -185,8 +185,8 @@ Sempre começa por apk_. Caso não tenha essa informação, pegue sua chave API 
 			<br>
 			<strong><a href="https://github.com/paghiper/whmcs" target="_blank">https://github.com/paghiper/whmcs</a></strong></li>
 			</ul><br>'
-		)
-	);
+		]
+	];
 
 	return $config;
 }
