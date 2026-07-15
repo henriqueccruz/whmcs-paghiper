@@ -1,19 +1,5 @@
 <?php
 
-require_once __DIR__ . '/vendor/autoload.php';
-
-use PhpParser\Error;
-use PhpParser\Node;
-use PhpParser\Node\Arg;
-use PhpParser\Node\Expr;
-use PhpParser\Node\Name;
-use PhpParser\Node\Expr\Include_;
-use PhpParser\Node\Scalar\String_;
-use PhpParser\NodeFinder;
-use PhpParser\BuilderHelpers;
-use PhpParser\ParserFactory;
-use PhpParser\PrettyPrinter;
-
 use Illuminate\Database\Capsule\Manager as Capsule;
 
 class PaghiperPdfInvoiceIntegrator {
@@ -25,113 +11,74 @@ class PaghiperPdfInvoiceIntegrator {
             $tplPath = NULL;
 
     function __construct() {
-        // Require WHMCS to be initialized
         if (!defined('ROOTDIR')) {
-            // Attempt to locate init.php assuming we are in modules/gateways/paghiper/inc/helpers/
             $initPath = __DIR__ . '/../../../../../init.php';
             if (file_exists($initPath)) {
                 require_once($initPath);
             }
         }
 
-        // Initialize cache
         $cacheMethod = \WHMCS\Config\Setting::getValue('Cache_Driver');
         $this->cacheManager = \WHMCS\Cache\Manager::factory($cacheMethod);
 
-        // Check and update template
+        // Somente roda o update se instanciado no cron ou painel (sem ação específica)
+        // updatePdfInvoiceTpl() is explicitly called when needed, or left here if auto-heal is desired
+        // but we'll leave the auto-heal logic active unless we pass a param to skip.
+    }
+
+    public function autoHeal() {
         $this->updatePdfInvoiceTpl();
     }
 
-    function isTplOutdated() {
-        // Get original file hash stored when we last integrated
-        $storedHash = \WHMCS\Config\Setting::getValue('Paghiper_InvoicePdf_Origin_TplHash');
-        
-        if (!$storedHash) {
-            return true; // No hash stored, assume outdated or not present
+    public function isTplIntegrated($tplFilePath = null) {
+        $target_include = '/../../modules/gateways/paghiper/inc/helpers/attach_pdf_slip.php';
+
+        if ($tplFilePath === null) {
+            $tplFilePath = $this->getPdfInvoiceTplPath();
         }
 
-        // We can't easily check the "original" state of the file currently on disk 
-        // because it's already modified (potentially).
-        // This check would require knowing what the file *should* look like.
-        // For now, we rely on isTplIntegrated() to check if our code is present.
+        if (!$tplFilePath || !file_exists($tplFilePath)) {
+            return false;
+        }
+
+        $code = file_get_contents($tplFilePath);
         
+        // Verifica se a string do include existe no código
+        if (strpos($code, $target_include) !== false) {
+            return true;
+        }
+
         return false;
     }
 
-    function isTplIntegrated($tplAST = null) {
-        $target_include = [
-            'filename'      => '/../../modules/gateways/paghiper/inc/helpers/attach_pdf_slip.php',
-            'type'          => 1 // include statement
-        ];
-
-        if ($tplAST === null) {
-            $tplFilePath = $this->getPdfInvoiceTplPath();
-            if (!$tplFilePath || !file_exists($tplFilePath)) {
-                return false;
-            }
-
-            $parser = (new ParserFactory)->create(ParserFactory::PREFER_PHP7);
-            try {
-                $code = file_get_contents($tplFilePath);
-                $tplAST = $parser->parse($code);
-            } catch (Error $error) {
-                // Parse error, assume not integrated or broken
-                return false;
-            }
-        }
-
-        $nodeFinder = new NodeFinder();
-        $found = $nodeFinder->findFirst($tplAST, function(Node $node) use ($target_include) {
-            if ($node instanceof Expression && $node->expr instanceof Include_) {
-                $includeFile = null;
-                
-                // Handle various node structures for the include path
-                if ($node->expr->expr instanceof String_) {
-                    $includeFile = $node->expr->expr->value;
-                }
-
-                $includeType = $node->expr->type;
-
-                // Check if it matches our target file
-                if ($includeFile === $target_include['filename']) {
-                    return true;
-                }
-            }
-            return false;
-        });
-
-        return $found !== null;
-    }
-
-    function getPdfInvoiceTplPath() {
-        // Retornamos o dado, caso ja o tenhamos na classe
-        if($this->tplPath)
+    public function getPdfInvoiceTplPath($forceTemplateName = null) {
+        if($this->tplPath && !$forceTemplateName)
             return $this->tplPath;
 
-        // 1. Dados que precisamos setar para fazer qualquer operação primeiro
-        $this->version = Capsule::table('tblconfiguration')->where('setting', 'Version')->value('value');
-        $this->activeTemplate = Capsule::table('tblconfiguration')->where('setting', 'Template')->value('value');
+        $paths = [];
 
-        $paths = [
-            ROOTDIR . "/templates/{$this->activeTemplate}/invoicepdf.tpl"
-        ];
+        if ($forceTemplateName) {
+            $paths[] = ROOTDIR . "/templates/{$forceTemplateName}/invoicepdf.tpl";
+        } else {
+            $this->version = Capsule::table('tblconfiguration')->where('setting', 'Version')->value('value');
+            $this->activeTemplate = Capsule::table('tblconfiguration')->where('setting', 'Template')->value('value');
 
-        // 2. Lógica de Child Theme (Suporte para WHMCS 8.x + Temas como Lagom)
-        $templateConfig = ROOTDIR . "/templates/{$this->activeTemplate}/theme.yaml";
-        if (file_exists($templateConfig)) {
-            $yamlContent = file_get_contents($templateConfig);
-            if (preg_match('/parent:\s*["\\]?([^"\\]+)["\\]?/', $yamlContent, $matches)) {
-                $this->parentTemplate = trim($matches[1]);
-                $paths[] = ROOTDIR . "/templates/{$this->parentTemplate}/invoicepdf.tpl";
+            $paths[] = ROOTDIR . "/templates/{$this->activeTemplate}/invoicepdf.tpl";
+
+            $templateConfig = ROOTDIR . "/templates/{$this->activeTemplate}/theme.yaml";
+            if (file_exists($templateConfig)) {
+                $yamlContent = file_get_contents($templateConfig);
+                if (preg_match('/parent:\s*["\\]?([^"\\]+)["\\]?/', $yamlContent, $matches)) {
+                    $this->parentTemplate = trim($matches[1]);
+                    $paths[] = ROOTDIR . "/templates/{$this->parentTemplate}/invoicepdf.tpl";
+                }
             }
+
+            $isModern = version_compare($this->version, '8.1.0', '>=');
+            $paths[] = ROOTDIR . ($isModern ? "/templates/twenty-one/invoicepdf.tpl" : "/templates/six/invoicepdf.tpl");
+            $paths[] = ROOTDIR . "/templates/six/invoicepdf.tpl"; 
         }
 
-        // 3. Adiciona os Fallbacks do Sistema por versão
-        $isModern = version_compare($this->version, '8.1.0', '>=');
-        $paths[] = ROOTDIR . ($isModern ? "/templates/twenty-one/invoicepdf.tpl" : "/templates/six/invoicepdf.tpl");
-        $paths[] = ROOTDIR . "/templates/six/invoicepdf.tpl"; // Fallback final universal
-
-        // 4. Retorna o PRIMEIRO arquivo que fisicamente existir na hierarquia
         foreach ($paths as $path) {
             if (file_exists($path)) {
                 $this->cacheManager->delete('paghiper_pdf_int_nopath');
@@ -144,44 +91,30 @@ class PaghiperPdfInvoiceIntegrator {
         return null;
     }
 
-    function generateFileHash($file) {
+    public function generateFileHash($file) {
         if (file_exists($file)) {
             return md5_file($file);
         }
         return md5($file);
     }
 
-    function updatePdfInvoiceTpl() {
-        $tplFilePath = $this->getPdfInvoiceTplPath();
+    public function updatePdfInvoiceTpl($forceTemplateName = null) {
+        $tplFilePath = $this->getPdfInvoiceTplPath($forceTemplateName);
 
         if (!$tplFilePath || !file_exists($tplFilePath)) {
             return false;
         }
 
-        $localTime = time();
-        $tplBackupPath = dirname($tplFilePath) . "/invoicepdf_backup_{$localTime}.tpl";
-
-        // Parse file and check if we're integrated already
-        $parser = (new ParserFactory)->create(ParserFactory::PREFER_PHP7);
-        try {
-            $code = file_get_contents($tplFilePath);
-            $tplAST = $parser->parse($code);
-        } catch (Error $error) {
-            $this->cacheManager->set('paghiper_pdf_int_parse_err', $error->getMessage(), 3600);
-            return false;
-        }
-
-        // Check if include is installed
-        if ($this->isTplIntegrated($tplAST)) {
+        if ($this->isTplIntegrated($tplFilePath)) {
             return true;
         }
 
-        // Backup existing file
+        $localTime = time();
+        $tplBackupPath = dirname($tplFilePath) . "/invoicepdf_backup_{$localTime}.tpl";
+
         if (!copy($tplFilePath, $tplBackupPath)) {
              $this->cacheManager->set('paghiper_pdf_int_backup_err', "Could not create backup at $tplBackupPath", 3600);
-             // Proceeding with caution or return false?
-             // Ideally we should stop if backup fails to prevent data loss.
-             // return false; 
+             return false; 
         }
 
         if (!is_writable($tplFilePath)) {
@@ -189,41 +122,39 @@ class PaghiperPdfInvoiceIntegrator {
              return false;
         }
 
-        // Prepare the include node
+        $code = file_get_contents($tplFilePath);
         $full_path = '/../../modules/gateways/paghiper/inc/helpers/attach_pdf_slip.php';
+        
+        // Inserção Limpa: Encontra a primeira tag <?php e insere o include logo após ela.
+        // Isso preserva 100% da formatação e comentários originais.
+        $includeStmt = "\n    // PagHiper - Anexo de Boleto e PIX\n    include(__DIR__ . '" . $full_path . "');\n";
+        
+        $newCode = preg_replace('/<\?php\s*/', "<?php" . $includeStmt, $code, 1);
 
-        $include_node = new Expr\FuncCall(
-            new Name('include'),
-            [new Arg(new String_($full_path))]
-        );
+        if ($newCode === $code) {
+             // Regex falhou, talvez a tag <?php esteja escrita de forma diferente ou não exista.
+             $this->cacheManager->set('paghiper_pdf_int_cant_update', "Não foi possível localizar a tag <?php no início do arquivo.", 3600);
+             return false;
+        }
 
-        // Add to the beginning of the AST
-        array_unshift($tplAST, BuilderHelpers::normalizeStmt($include_node));
-
-        $formattedTplCode = (new PrettyPrinter\Standard())->prettyPrintFile($tplAST);
-
-        $originalFileHash = $this->generateFileHash($tplFilePath);
+        $originalFileHash = $this->generateFileHash($tplBackupPath);
 
         try {
             error_clear_last();
-            $tplUpdate = file_put_contents($tplFilePath, $formattedTplCode);
+            $tplUpdate = file_put_contents($tplFilePath, $newCode);
 
             if ($tplUpdate === false) {
                 $error = error_get_last();
                 $this->cacheManager->set('paghiper_pdf_int_cant_update', ($error['message'] ?? 'Erro desconhecido'), 3600);
                 return false;
             } else {
-                // Update Hash Configuration
                 \WHMCS\Config\Setting::setValue('Paghiper_InvoicePdf_Origin_TplHash', $originalFileHash);
-                
                 $customFileHash = $this->generateFileHash($tplFilePath);
                 \WHMCS\Config\Setting::setValue('Paghiper_InvoicePdf_Custom_TplHash', $customFileHash);
                 
-                // Clear Smarty Cache
                 $smarty = new \WHMCS\Smarty();
                 $smarty->clearCompiledTemplate();
 
-                // Clear related errors
                 $this->cacheManager->delete('paghiper_pdf_int_cant_update');
                 
                 return true;
@@ -233,11 +164,63 @@ class PaghiperPdfInvoiceIntegrator {
             return false;
         }
     }
+
+    /**
+     * Retorna todos os templates disponíveis que possuem o arquivo invoicepdf.tpl
+     */
+    public function getAvailableTemplates() {
+        $templatesDir = ROOTDIR . '/templates/';
+        $available = [];
+        if (is_dir($templatesDir)) {
+            $dirs = array_diff(scandir($templatesDir), array('.', '..'));
+            foreach ($dirs as $dir) {
+                if (is_dir($templatesDir . $dir) && file_exists($templatesDir . $dir . '/invoicepdf.tpl')) {
+                    $available[] = $dir;
+                }
+            }
+        }
+        return $available;
+    }
+
+    /**
+     * Retorna lista de backups disponíveis para um template específico
+     */
+    public function getBackups($templateName) {
+        $templateDir = ROOTDIR . "/templates/{$templateName}/";
+        $backups = [];
+        if (is_dir($templateDir)) {
+            $files = glob($templateDir . "invoicepdf_backup_*.tpl");
+            foreach ($files as $file) {
+                $backups[] = [
+                    'filename' => basename($file),
+                    'date' => date("Y-m-d H:i:s", filemtime($file)),
+                    'size' => filesize($file)
+                ];
+            }
+        }
+        // Ordena do mais recente pro mais antigo
+        usort($backups, function($a, $b) {
+            return strtotime($b['date']) - strtotime($a['date']);
+        });
+        return $backups;
+    }
+
+    /**
+     * Restaura um backup específico
+     */
+    public function restoreBackup($templateName, $backupFilename) {
+        $templateDir = ROOTDIR . "/templates/{$templateName}/";
+        $backupPath = $templateDir . $backupFilename;
+        $originalPath = $templateDir . "invoicepdf.tpl";
+
+        if (file_exists($backupPath) && is_writable($originalPath)) {
+            if (copy($backupPath, $originalPath)) {
+                $smarty = new \WHMCS\Smarty();
+                $smarty->clearCompiledTemplate();
+                return true;
+            }
+        }
+        return false;
+    }
 }
 
-// Instantiate if called directly
-if (basename(__FILE__) == basename($_SERVER['PHP_SELF'])) {
-    // Only run if not being included
-    new PaghiperPdfInvoiceIntegrator();
-    echo "Integration check/update execution completed.";
-}
