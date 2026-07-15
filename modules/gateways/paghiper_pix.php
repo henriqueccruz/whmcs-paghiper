@@ -132,9 +132,14 @@ Sempre começa por apk_. Caso não tenha essa informação, pegue sua chave API 
             "Size" => "7",
             "Description" => "Taxa cobrada a mais do cliente por utilizar esse meio de pagamento, exemplo: 2.0 (dois reais). Obs: Use o ponto (.) como delimitador de casas decimais.<br> Recomendamos não cobrar nenhuma taxa."
         ),
-        "fixed_description" => array(
-            "FriendlyName" => "Exibe ou não a frase fixa no PIX (configurada no painel da PagHiper)",
-            "Type" => "yesno"
+        "issue_all" => array(
+            "FriendlyName" => "Gerar PIX para todos os pedidos?",
+            'Type' => 'dropdown',
+            'Options' => array(
+                '1'    => 'Sim',
+                '0'     => 'Não',
+            ),
+            'Description' => 'Caso selecione não, o PIX será gerado somente se o cliente selecionar "PagHiper PIX" (ou o nome configurado acima) como método de pagamento padrão.',
         ),
         "reissue_unpaid" => array(
             "FriendlyName" => "Vencimento padrão para PIX emitidos",
