@@ -16,7 +16,7 @@ Seu boleto sai direto no PDF anexo a fatura (funcionalidade exclusiva).
 
 # Como Instalar
 
-1. Crie sua conta na PagHiper [clique aqui para saber como](https://github.com/paghiper/whmcs/wiki/Como-criar-seu-cadastro-na-PagHiper).
+1. Crie sua conta na PagHiper [clique aqui para saber como](https://atendimento.paghiper.com/hc/pt-br/articles/115005079914-O-que-é-necessário-para-se-cadastrar-no-PagHiper).
 
 2. Baixe o gateway da **PagHiper**, extraia o conteúdo e faça upload das pastas includes e modules para a raíz da sua instalação do WHMCS
 
@@ -48,7 +48,7 @@ include $basedir . '/modules/gateways/paghiper/inc/helpers/attach_pdf_slip.php';
 
 9. Para inserir código PIX e linha digitável de boletos, edite seu template de e-mail em Opções (Setup) > Modelos de e-mail (E-mail templates). Você pode usar dois campos de mesclagens, um para boleto e outro para PIX, respectivamente: {$linha_digitavel} e {$codigo_pix}. Basta inserí-los nos templates de comunicação de e-mail nos locais desejados.
 
-Se tiver dúvidas sobre esse processo, acesse nosso [guia de configuração de plugin](https://github.com/paghiper/whmcs/wiki/Configurando-o-plugin-no-seu-WHMCS)
+Se tiver dúvidas sobre esse processo, acesse nosso [guia de configuração de plugin](https://atendimento.paghiper.com/hc/pt-br/articles/360001296173-Modulo-PAGHIPER-para-WHMCS)
 
 
 # Suporte
