@@ -13,6 +13,8 @@
 
 if (!defined("WHMCS")) die("This file cannot be accessed directly");
 
+use WHMCS\Database\Capsule;
+
 function paghiper_display_pix_qr_code($vars) {
 	
 	// PHP 5.x compatibility

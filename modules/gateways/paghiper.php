@@ -11,6 +11,8 @@
  * @link       https://www.paghiper.com/
  */
 
+use WHMCS\User\Client;
+
 // Opções padrão do Gateway
 function paghiper_config($params = NULL) {
     require_once __DIR__ . '/paghiper/inc/helpers/integrate_pdf_template.php';
