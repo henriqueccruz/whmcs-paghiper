@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../modules/gateways/paghiper/inc/helpers/gateway_functions.php';
+require_once __DIR__ . '/../../../modules/gateways/paghiper/inc/helpers/gateway_functions.php';
 
 test('blocks CPFs with letters', function () {
     // If a user types AAAAAAAAA00, paghiper_clean_tax_id keeps the letters.
