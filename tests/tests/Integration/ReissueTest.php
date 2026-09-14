@@ -73,3 +73,20 @@ test('permite emissao se fatura estiver vencida MAS dentro da tolerancia de dias
     $html_output = ob_get_clean();
     expect($html_output)->not->toContain('Transação vencida');
 });
+
+test('bloqueia sumariamente a reemissao se configurada com tolerancia -1 (rigorosa)', function () {
+    createMockInvoice(-1);
+    $gateway_config = [
+        'name' => 'PagHiper Test', 'reissue_unpaid' => -1, 'porcento' => 0, 'taxa' => 0,
+        'apiKey' => 'MOCK_API_KEY', 'token' => 'MOCK_TOKEN',
+        'cpf_cnpj' => getGatewayVariables('paghiper_pix')['cpf_cnpj'] ?? '1'
+    ];
+    require_once __DIR__ . '/../../../modules/gateways/paghiper/classes/PaghiperTransaction.php';
+    $transaction = new PaghiperTransaction([
+        'gateway' => 'paghiper_pix', 'gatewayConf' => $gateway_config, 'invoiceID' => 9999999,
+        'whmcsVersion' => '9.0.0', 'isPix' => true, 'format' => 'json'
+    ]);
+    $result = $transaction->process(); var_dump('RETORNO DO PROCESS:', $result);
+    $json = json_decode($result, true);
+    expect($json['error'] ?? '')->toBe('reissue_not_allowed');
+});
