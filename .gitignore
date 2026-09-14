@@ -28,3 +28,8 @@
 modules/gateways/paghiper/tmp/
 
 .DS_Store
+
+# Liberar infraestrutura de testes
+!tests/
+!tests/**
+tests/vendor/
