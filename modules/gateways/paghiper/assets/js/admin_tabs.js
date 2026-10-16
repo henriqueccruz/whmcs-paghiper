@@ -1,15 +1,16 @@
-document.addEventListener("DOMContentLoaded", function () {
-    if (window.paghiperTabsInitialized) return;
-    window.paghiperTabsInitialized = true;
-
-    var isPaghiper = false;
-    var forms = document.querySelectorAll("form");
-    forms.forEach(function (f) {
-        if (f.innerHTML.indexOf('name="field[email]"') !== -1 && f.innerHTML.indexOf('paghiper') !== -1) {
-            isPaghiper = true;
-            initPaghiperTabs(f);
-        }
-    });
+(function () {
+    function initAllPaghiperTabs() {
+        var forms = document.querySelectorAll("form");
+        forms.forEach(function (f) {
+            var isPaghiper = f.querySelector('input[name="module"][value="paghiper"], input[name="module"][value="paghiper_pix"]') ||
+                             f.querySelector('[name="field[api_key]"]') ||
+                             f.querySelector('#paghiper_row_nota') ||
+                             (f.innerHTML.indexOf('paghiper') !== -1 && f.querySelector('[name^="field["]'));
+            if (isPaghiper) {
+                initPaghiperTabs(f);
+            }
+        });
+    }
 
     function initPaghiperTabs(form) {
         if (form.dataset.paghiperInit) return;
@@ -19,11 +20,39 @@ document.addEventListener("DOMContentLoaded", function () {
         if (!table) return;
 
         var groups = {
-            "Geral": ["nota", "FriendlyName", "email", "api_key", "token", "cpf_cnpj", "razao_social", "admin", "suporte"],
+            "Geral": ["nota", "visible", "name", "convertto", "email", "api_key", "token", "cpf_cnpj", "razao_social", "admin", "suporte"],
             "Taxas e Prazos": ["porcento", "taxa", "open_after_day_due", "reissue_unpaid", "late_payment_fine", "per_day_interest", "early_payment_discounts_days", "early_payment_discounts_cents"],
             "Integração": ["ui_email_templates", "ui_injector"],
-            "Avançado": ["issue_all", "tax_id_validation", "abrirauto", "fixed_description", "negar_sem_company_razao"]
+            "Avançado": ["issue_all", "tax_id_validation", "fixed_description", "negar_sem_company_razao"]
         };
+
+        function updateTabRows(activeGroup) {
+            var rows = table.querySelectorAll("tr");
+            rows.forEach(function (row) {
+                var fieldInput = row.querySelector("[name^='field['], input[name='name'], input[name='visible'], select[name='convertto']");
+                if (fieldInput) {
+                    var fieldName = '';
+                    var fieldNameMatch = fieldInput.name.match(/field\[(.*?)\]/);
+                    if (fieldNameMatch) {
+                        fieldName = fieldNameMatch[1];
+                    } else {
+                        fieldName = fieldInput.name;
+                    }
+
+                    if (groups[activeGroup] && groups[activeGroup].indexOf(fieldName) !== -1) {
+                        row.style.display = "";
+                    } else {
+                        row.style.display = "none";
+                    }
+                } else {
+                    // Handle pseudo-fields with wrappers
+                    if (row.querySelector('#paghiper_row_nota')) { row.style.display = (activeGroup === 'Geral') ? '' : 'none'; }
+                    else if (row.querySelector('#paghiper_row_suporte')) { row.style.display = (activeGroup === 'Geral') ? '' : 'none'; }
+                    else if (row.querySelector('#paghiper_row_ui_injector')) { row.style.display = (activeGroup === 'Integração') ? '' : 'none'; }
+                    else if (row.querySelector('#paghiper_row_ui_email_templates')) { row.style.display = (activeGroup === 'Integração') ? '' : 'none'; }
+                }
+            });
+        }
 
         var tabContainer = document.createElement("ul");
         tabContainer.className = "nav nav-tabs admin-tabs";
@@ -45,27 +74,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     tabs.forEach(function (t) { t.className = ""; });
                     tabLink.parentNode.className = "active";
 
-                    var rows = table.querySelectorAll("tr");
-                    rows.forEach(function (row) {
-                        var input = row.querySelector("[name^='field[']");
-                        if (input) {
-                            var fieldNameMatch = input.name.match(/field\[(.*?)\]/);
-                            if (fieldNameMatch) {
-                                var fieldName = fieldNameMatch[1];
-                                if (groups[activeGroup].indexOf(fieldName) !== -1) {
-                                    row.style.display = "";
-                                } else {
-                                    row.style.display = "none";
-                                }
-                            }
-                        } else {
-                            // Handle pseudo-fields with wrappers
-                            if (row.querySelector('#paghiper_row_nota')) { row.style.display = (activeGroup === 'Geral') ? '' : 'none'; }
-                            if (row.querySelector('#paghiper_row_suporte')) { row.style.display = (activeGroup === 'Geral') ? '' : 'none'; }
-                            if (row.querySelector('#paghiper_row_ui_injector')) { row.style.display = (activeGroup === 'Integração') ? '' : 'none'; }
-                            if (row.querySelector('#paghiper_row_ui_email_templates')) { row.style.display = (activeGroup === 'Integração') ? '' : 'none'; }
-                        }
-                    });
+                    updateTabRows(activeGroup);
                 };
             })(group, a);
 
@@ -74,27 +83,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
             // Initial render
             if (first) {
-                var rows = table.querySelectorAll("tr");
-                rows.forEach(function (row) {
-                    var input = row.querySelector("[name^='field[']");
-                    if (input) {
-                        var fieldNameMatch = input.name.match(/field\[(.*?)\]/);
-                        if (fieldNameMatch) {
-                            var fieldName = fieldNameMatch[1];
-                            if (groups[group].indexOf(fieldName) !== -1) {
-                                row.style.display = "";
-                            } else {
-                                row.style.display = "none";
-                            }
-                        }
-                    } else {
-                        // Handle pseudo-fields with wrappers
-                        if (row.querySelector('#paghiper_row_nota')) { row.style.display = (group === 'Geral') ? '' : 'none'; }
-                        if (row.querySelector('#paghiper_row_suporte')) { row.style.display = (group === 'Geral') ? '' : 'none'; }
-                        if (row.querySelector('#paghiper_row_ui_injector')) { row.style.display = (group === 'Integração') ? '' : 'none'; }
-                        if (row.querySelector('#paghiper_row_ui_email_templates')) { row.style.display = (group === 'Integração') ? '' : 'none'; }
-                    }
-                });
+                updateTabRows(group);
             }
             first = false;
         }
@@ -145,7 +134,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         // Initialize global state if not present
         window.paghiperIssueAllState = window.paghiperIssueAllState || { paghiper: false, paghiper_pix: false };
-        
+
         var friendlyNames = { paghiper: 'PagHiper', paghiper_pix: 'PagHiper PIX' };
         var integrationContainer = form.querySelector('.paghiper-integration-ui-container');
         var currentModule = '';
@@ -208,7 +197,7 @@ document.addEventListener("DOMContentLoaded", function () {
             domIssueAllCb.addEventListener('change', function (e) {
                 // Determine if the OTHER module is active
                 var otherModuleActive = (currentModule === 'paghiper') ? window.paghiperIssueAllState.paghiper_pix : window.paghiperIssueAllState.paghiper;
-                
+
                 updateSnippetUI(); // this will also update window.paghiperIssueAllState with the new checked value
 
                 if (this.checked && otherModuleActive) {
@@ -225,7 +214,7 @@ document.addEventListener("DOMContentLoaded", function () {
         form.addEventListener('submit', function (e) {
             var isChecked = domIssueAllCb ? domIssueAllCb.checked : false;
             var otherModuleActive = (currentModule === 'paghiper') ? window.paghiperIssueAllState.paghiper_pix : window.paghiperIssueAllState.paghiper;
-            
+
             if (isChecked && otherModuleActive) {
                 if (currentModule === 'paghiper') {
                     alert("Lembrete ao salvar: Você está ativando/mantendo a emissão global de Boletos, mas a de PIX também está ativa. O PIX terá prioridade!");
@@ -419,4 +408,10 @@ document.addEventListener("DOMContentLoaded", function () {
                 alert("Erro na requisição AJAX.");
             });
     }
-});
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", initAllPaghiperTabs);
+    } else {
+        initAllPaghiperTabs();
+    }
+})();
