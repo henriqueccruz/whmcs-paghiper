@@ -290,15 +290,6 @@ function paghiper_link($params) {
     $systemurl = rtrim($params['systemurl'],"/");
     $urlRetorno = $systemurl.'/modules/gateways/'.basename(__FILE__);
 
-    // Abrir o boleto automaticamente ao abrir a fatura 
-    if($params['abrirauto'] == true):
-        $target = '';
-        $abrirAuto = "<script type='text/javascript'> document.paghiper.submit()</script>";
-    else:
-        $target =  "target='_blank'";
-        $abrirAuto = ''; 
-    endif;
-
     // Checamos o CPF/CNPJ novamente, para evitar problemas no checkout
     $taxIdFields = explode("|", $params['cpf_cnpj']);
     $payerNameField = $params['razao_social'];
