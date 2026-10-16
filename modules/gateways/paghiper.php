@@ -122,13 +122,6 @@ function paghiper_config($params = NULL) {
                <li><h5>Suporte</h5><p>Se tiver qualquer duvida, visite a nossa <a href='https://www.paghiper.com/atendimento/' target='_blank'><strong>central de atendimento</strong></a></p></li>
            </ul></div>"
         ],
-        
-        'email' => [
-            "FriendlyName" => "Email",
-            "Type" => "text",
-            "Size" => "100",
-            "Description" => "Email da conta PagHiper que irá receber"
-        ],
         'api_key' => [
             "FriendlyName" => "API Key",
             "Type" => "text",
